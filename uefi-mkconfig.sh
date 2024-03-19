@@ -58,7 +58,7 @@ main () {
 		partition_mount=$(lsblk "/dev/$partition" -lno MOUNTPOINTS | head -n 1)
 
 		# Find all .efi files on this partition
-		partition_efis="$(find $partition_mount -name "vmlinuz-*")"
+		partition_efis="$(find $partition_mount \( -name "vmlinuz-*" -o -name "kernel-*" -o -name "bzImage*" \))"
 
 		
 		# ---- Remove invalid entries ----
@@ -72,7 +72,7 @@ main () {
 			uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
 			
 			# Check if efi file exists
-			if [[ ! -e "$efi_path" ]]; then
+			if [ ! -e "$efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
 				
 				# Delete entry
 				echo "EFI file $efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!"
