@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# NEEDED:
+## Pass parameters from the cmdline to script variables
+## Implement better labling of UEFI entries
 
 check_if_uefi_entry_exists () {
 	for entry in $(efibootmgr); do
@@ -21,19 +24,29 @@ add_uefi_entry () (
 		# Add entry if it doesn't exist
 		if check_if_uefi_entry_exists; then
 		
-			# Find first free hex address larger than or equal to 0100 for new UEFI boot entry
 			local bootnum=256 # 256 is decimal value of 0100
 			local efibootmgr="$(efibootmgr)"
 
+			# Find first free hex address larger than or equal to 0100 for new UEFI boot entry
 			while [ "$(echo ${efibootmgr/*Boot$(printf %04X $bootnum)*/})" == "" ]; do
 
 				local bootnum=$(($bootnum + 1))
 
 			done
 			
+			# Get partition LABEL
+			local partition_label="$(lsblk "/dev/$partition" -lno LABEL)"
+
+			# Create label for UEFI entry
+			if [[ -n ${partition_label} ]]; then
+				local entry_label="$(echo $efi_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")-$partition_label"
+			else
+				local entry_label="$(echo $efi_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")"
+			fi
+
 			# Add entry
 			echo "Adding UEFI entry for $efi_path found on $partition..."
-			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "Gentoo $partition" --loader "$efi_path" -u $kernel_commands &>/dev/null
+			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "$efi_path" -u "$kernel_commands $initramfs_image" &>/dev/null
 		
 		else
 		
@@ -45,7 +58,8 @@ add_uefi_entry () (
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-	kernel_commands='initrd=initrd crypt_root=UUID=dcb0cc6f-464c-4e98-b91c-e59e3655d161 root=/dev/mapper/gentoo-root rootfstype=ext4 resume=/dev/mapper/gentoo-swap dolvm quiet'
+	kernel_commands='crypt_root=UUID=dcb0cc6f-464c-4e98-b91c-e59e3655d161 root=/dev/mapper/gentoo-root rootfstype=ext4 resume=/dev/mapper/gentoo-swap dolvm quiet'
+	initramfs_image="initrd=initrd"
 	mounted_esp=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1)
 	
 	for partition in $mounted_esp; do
@@ -71,7 +85,7 @@ main () {
 			
 			uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
 			
-			# Check if efi file exists
+			# Check if efi file exists and if this entry in in managed range
 			if [ ! -e "$efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
 				
 				# Delete entry
@@ -90,10 +104,3 @@ main () {
 }
 
 main
-
-# NEEDED:
-## Support for Initramfs image
-## Compat mode ?
-## Remove UEFI entry
-## If boot number is higher than 0100 don't handle it automtically to allow for custom entries
-
