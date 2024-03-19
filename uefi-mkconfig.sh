@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # NEEDED:
 ## Pass parameters from the cmdline to script variables
-## Implement better labling of UEFI entries
 
 check_if_uefi_entry_exists () {
 	for entry in $(efibootmgr); do
 
 		if [[ "$entry" == *"($efi_path"* ]] && [[ "$entry" == *"$partition_uuid"* ]]; then
 			
-			return 1
+			return 0
 		fi
 			
 	done
-	return 0
+	return 1
 }
 
 add_uefi_entry () (
@@ -22,7 +21,7 @@ add_uefi_entry () (
 		local efi_path=$(echo "${efi//$partition_mount}" | sed 's/\//\\/g')
 
 		# Add entry if it doesn't exist
-		if check_if_uefi_entry_exists; then
+		if ! check_if_uefi_entry_exists; then
 		
 			local bootnum=256 # 256 is decimal value of 0100
 			local efibootmgr="$(efibootmgr)"
@@ -46,7 +45,7 @@ add_uefi_entry () (
 
 			# Add entry
 			echo "Adding UEFI entry for $efi_path found on $partition..."
-			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "$efi_path" -u "$kernel_commands $initramfs_image" &>/dev/null
+			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "$efi_path" -u "$kernel_commands $initramfs_image" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_path !!!"; exit 1)
 		
 		else
 		
@@ -86,11 +85,11 @@ main () {
 			uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
 			
 			# Check if efi file exists and if this entry in in managed range
-			if [ ! -e "$efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
+			if [ ! -f "$efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
 				
 				# Delete entry
-				echo "EFI file $efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!"
-				efibootmgr -q -B -b $uefi_entry_hex
+				echo "!!! EFI file $efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!!"
+				efibootmgr -q -B -b $uefi_entry_hex || (echo "!!! Failed to delete entry $uefi_entry_hex !!!"; exit 1)
 
 			fi
 
