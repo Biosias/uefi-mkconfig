@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# NEEDED:
-## Add initramfs discovery
-## 
 
 check_if_uefi_entry_exists () {
 	for entry in $(efibootmgr); do
 
-		if [[ "$entry" == *"($efi_path"* ]] && [[ "$entry" == *"$partition_uuid"* ]]; then
+		if [[ "$entry" == *"($efi_file_path"* ]] && [[ "$entry" == *"$partition_uuid"* ]]; then
 			
 			return 0
 		fi
@@ -16,10 +13,10 @@ check_if_uefi_entry_exists () {
 }
 
 add_uefi_entry () (
-	for efi in $partition_efis; do
+	for efi_file in $partition_efis; do
 		
 		# Prepare path which will be inserted into efibootmgr
-		local efi_path=$(echo "${efi//$partition_mount}" | sed 's/\//\\/g')
+		local efi_file_path=$(echo "${efi_file//$partition_mount}" | sed 's/\//\\/g')
 
 		# Add entry if it doesn't exist
 		if ! check_if_uefi_entry_exists; then
@@ -34,19 +31,19 @@ add_uefi_entry () (
 
 			done
 			
-			# Get partition LABEL
-			local partition_label="$(lsblk "/dev/$partition" -lno LABEL)"
+			# Get partition PARTLABEL
+			local partition_label="$(lsblk "/dev/$partition" -lno PARTLABEL)"
 
 			# Create label for UEFI entry
 			if [[ -n ${partition_label} ]]; then
-				local entry_label="$(echo $efi_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")-$partition_label"
+				local entry_label="$(echo $efi_file_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")-$partition_label"
 			else
-				local entry_label="$(echo $efi_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")"
+				local entry_label="$(echo $efi_file_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")"
 			fi
 
 			# Try autodiscover iniramfs images	
-			local kernel_version="$( echo ${efi_path//*\\/} | sed "s/.efi//" | sed "s/-plain.*//" | sed "s/kernel-//" | sed "s/vmlinuz-//" | sed "s/vmlinux-//" | sed "s/-plain*//")"
-			local initramfs_image="$(echo ${efi_path//\\/\/} | sed "s/${efi_path//*\\/}//")initramfs-$kernel_version.img"
+			local kernel_version="$( echo ${efi_file_path//*\\/} | sed "s/.efi//" | sed "s/-plain.*//" | sed "s/kernel-//" | sed "s/vmlinuz-//" | sed "s/vmlinux-//" | sed "s/-plain*//")"
+			local initramfs_image="$(echo ${efi_file_path//\\/\/} | sed "s/${efi_file_path//*\\/}//")initramfs-$kernel_version.img"
 			if [[ -f "$partition_mount$initramfs_image" ]]; then
 
 				kernel_commands="${kernel_commands} initrd=${initramfs_image//\//\\}"
@@ -54,12 +51,12 @@ add_uefi_entry () (
 			fi
 
 			# Add entry
-			echo "Adding UEFI entry for $efi_path found on $partition..."
-			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "$efi_path" -u "$kernel_commands" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_path !!!"; exit i1)
+			echo "Adding UEFI entry for $efi_file_path found on $partition..."
+			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "$efi_file_path" -u "$kernel_commands" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_file_path !!!"; exit i1)
 			
 		else
 		
-			echo "UEFI Entry already exists for $efi_path on $partition !"	
+			echo "UEFI Entry already exists for $efi_file_path on $partition !"	
 		
 		fi
 	done
@@ -100,15 +97,15 @@ main () {
 
 			#Create path to efi file
 			#Not the nicest way to do it but for now its ok
-			local efi_path=$partition_mount$(echo $entry | sed 's/.*File(//g' | sed 's/.efi.*/.efi/g' | sed 's/\\/\//g')
+			local entry_efi_path=$partition_mount$(echo $entry | sed 's/.*File(//g' | sed 's/.efi.*/.efi/g' | sed 's/\\/\//g')
 			
 			uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
 			
 			# Check if efi file exists and if this entry in in managed range
-			if [ ! -f "$efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
+			if [ ! -f "$entry_efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
 				
 				# Delete entry
-				echo "!!! EFI file $efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!!"
+				echo "!!! EFI file $entry_efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!!"
 				efibootmgr -q -B -b $uefi_entry_hex || (echo "!!! Failed to delete entry $uefi_entry_hex !!!"; exit 1)
 
 			fi
