@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # NEEDED:
-## Pass parameters from the cmdline to script variables
+## Add initramfs discovery
+## 
 
 check_if_uefi_entry_exists () {
 	for entry in $(efibootmgr); do
@@ -43,10 +44,19 @@ add_uefi_entry () (
 				local entry_label="$(echo $efi_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")"
 			fi
 
+			# Try autodiscover iniramfs images	
+			local kernel_version="$( echo ${efi_path//*\\/} | sed "s/.efi//" | sed "s/-plain.*//" | sed "s/kernel-//" | sed "s/vmlinuz-//" | sed "s/vmlinux-//" | sed "s/-plain*//")"
+			local initramfs_image="$(echo ${efi_path//\\/\/} | sed "s/${efi_path//*\\/}//")initramfs-$kernel_version.img"
+			if [[ -f "$partition_mount$initramfs_image" ]]; then
+
+				kernel_commands="${kernel_commands} initrd=${initramfs_image//\//\\}"
+
+			fi
+
 			# Add entry
 			echo "Adding UEFI entry for $efi_path found on $partition..."
-			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "$efi_path" -u "$kernel_commands $initramfs_image" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_path !!!"; exit 1)
-		
+			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "$efi_path" -u "$kernel_commands" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_path !!!"; exit i1)
+			
 		else
 		
 			echo "UEFI Entry already exists for $efi_path on $partition !"	
@@ -59,6 +69,7 @@ main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 	mounted_esp=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1)
 
+	# Load kernel commands from config files
 	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
 		if [[ -f "${INSTALLKERNEL_CONF_ROOT}/cmdline" ]]; then
 			kernel_commands="$(tr -s "${IFS}" ' ' <"${KERNEL_INSTALL_CONF_ROOT}/cmdline")"
@@ -81,8 +92,7 @@ main () {
 		partition_mount=$(lsblk "/dev/$partition" -lno MOUNTPOINTS | head -n 1)
 
 		# Find all .efi files on this partition
-		partition_efis="$(find $partition_mount \( -name "vmlinuz-*" -o -name "kernel-*" -o -name "bzImage*" \))"
-
+		partition_efis="$(find $partition_mount \( -name "vmlinuz-*" -o -name "vmlinux-*" -o -name "gentoo-*.efi" -o -name "kernel-*" -o -name "bzImage*" \))"
 		
 		# ---- Remove invalid entries ----
 		IFS=$'\n'		
