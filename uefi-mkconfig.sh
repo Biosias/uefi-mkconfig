@@ -57,10 +57,20 @@ add_uefi_entry () (
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-	kernel_commands='crypt_root=UUID=dcb0cc6f-464c-4e98-b91c-e59e3655d161 root=/dev/mapper/gentoo-root rootfstype=ext4 resume=/dev/mapper/gentoo-swap dolvm quiet'
-	initramfs_image="initrd=initrd"
 	mounted_esp=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1)
-	
+
+	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
+		if [[ -f "${INSTALLKERNEL_CONF_ROOT}/cmdline" ]]; then
+			kernel_commands="$(tr -s "${IFS}" ' ' <"${KERNEL_INSTALL_CONF_ROOT}/cmdline")"
+		fi
+	elif [[ -f /etc/kernel/cmdline ]]; then
+		kernel_commands="$(tr -s "${IFS}" ' ' </etc/kernel/cmdline)"
+	elif [[ -f /usr/lib/kernel/cmdline ]]; then
+		kernel_commands="$(tr -s "${IFS}" ' ' </usr/lib/kernel/cmdline)"
+	else
+		kernel_commands="$(tr -s "${IFS}" '\n' </proc/cmdline | grep -ve '^BOOT_IMAGE=' -e '^initrd=' | tr '\n' ' ')"
+	fi
+
 	for partition in $mounted_esp; do
 		
 		# Find partition uuid
