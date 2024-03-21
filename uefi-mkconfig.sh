@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
+#NEEDED:
+## Shim booting
 
 check_if_uefi_entry_exists () {
 	for entry in $(efibootmgr); do
 
-		if [[ "$entry" == *"($efi_file_path"* ]] && [[ "$entry" == *"$partition_uuid"* ]]; then
-			
+		if [[ "$entry" == *"($efi_file_path"* ]] && [[ "$entry" == *"$partition_partuuid"* ]]; then
+	
 			return 0
 		fi
 			
@@ -89,7 +91,7 @@ main () {
 		partition_mount=$(lsblk "/dev/$partition" -lno MOUNTPOINTS | head -n 1)
 
 		# Find all .efi files on this partition
-		partition_efis="$(find $partition_mount \( -name "vmlinuz-*" -o -name "vmlinux-*" -o -name "gentoo-*.efi" -o -name "kernel-*" -o -name "bzImage*" \))"
+		partition_efis="$(find $partition_mount \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi" -o -name "kernel-*.efi" -o -name "bzImage*.efi" \))"
 		
 		# ---- Remove invalid entries ----
 		IFS=$'\n'		
@@ -97,12 +99,12 @@ main () {
 
 			#Create path to efi file
 			#Not the nicest way to do it but for now its ok
-			local entry_efi_path=$partition_mount$(echo $entry | sed 's/.*File(//g' | sed 's/.efi.*/.efi/g' | sed 's/\\/\//g')
+			local entry_efi_path=$(echo $entry | sed 's/.*File(//g' | sed 's/.efi.*/.efi/g' | sed 's/\\/\//g')
 			
-			uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
+			local uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
 			
 			# Check if efi file exists and if this entry in in managed range
-			if [ ! -f "$entry_efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
+			if [ ! -f "$partition_mount$entry_efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
 				
 				# Delete entry
 				echo "!!! EFI file $entry_efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!!"
