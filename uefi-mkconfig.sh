@@ -4,10 +4,18 @@
 
 check_if_uefi_entry_exists () {
 	for entry in $(efibootmgr); do
-
-		if [[ "$entry" == *"($efi_file_path"* ]] && [[ "$entry" == *"$partition_partuuid"* ]]; then
+		
+		# Added last case because while testing this script I found that sometimes, firmware uppercases the path and reverts backslash to forward slash
+		if [[ "$entry" == *"$partition_partuuid"* ]]; then
+			if [[ "$entry" == *"(${efi_file_path//\//\\}"* ]]; then
 	
-			return 0
+				return 0
+
+			elif [[ "$entry" == *"(${efi_file_path^^}"* ]]; then
+
+				return 0
+
+			fi
 		fi
 			
 	done
@@ -18,11 +26,12 @@ add_uefi_entry () (
 	for efi_file in $partition_efis; do
 		
 		# Prepare path which will be inserted into efibootmgr
-		local efi_file_path=$(echo "${efi_file//$partition_mount}" | sed 's/\//\\/g')
+		local efi_file_path=$(echo "${efi_file//$partition_mount}")
 
 		# Add entry if it doesn't exist
 		if ! check_if_uefi_entry_exists; then
 		
+			local efi_file_path=${efi_file_path//\//\\}}
 			local bootnum=256 # 256 is decimal value of 0100
 			local efibootmgr="$(efibootmgr)"
 
@@ -38,9 +47,9 @@ add_uefi_entry () (
 
 			# Create label for UEFI entry
 			if [[ -n ${partition_label} ]]; then
-				local entry_label="$(echo $efi_file_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")-$partition_label"
+				local entry_label="$(echo $efi_file_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/.*vmlinux-//g" | sed "s/\.efi//g")-$partition_label"
 			else
-				local entry_label="$(echo $efi_file_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/\.efi//g")"
+				local entry_label="$(echo $efi_file_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/.*vmlinux-//g" | sed "s/\.efi//g")"
 			fi
 
 			# Try autodiscover iniramfs images	
