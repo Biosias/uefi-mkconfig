@@ -22,7 +22,7 @@ check_if_uefi_entry_exists () {
 	return 1
 }
 
-add_uefi_entry () (
+add_uefi_entries () (
 	for efi_file in $partition_efis; do
 		
 		# Prepare path which will be inserted into efibootmgr
@@ -73,9 +73,33 @@ add_uefi_entry () (
 	done
 )
 
+remove_uefi_entries () {
+
+	IFS=$'\n'		
+	for entry in $(efibootmgr | grep $partition_partuuid); do
+
+		#Create path to efi file
+		#Not the nicest way to do it but for now its ok
+		local entry_efi_path=$(echo $entry | sed 's/.*File(//g' | sed 's/.efi.*/.efi/g' | sed 's/\\/\//g')
+			
+		local uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
+			
+		# Check if efi file exists and if this entry in in managed range
+		if [ ! -f "$partition_mount$entry_efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
+				
+			# Delete entry
+			echo "!!! EFI file $entry_efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!!"
+			efibootmgr -q -B -b $uefi_entry_hex || (echo "!!! Failed to delete entry $uefi_entry_hex !!!"; exit 1)
+
+		fi
+
+	done
+
+}
+
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-	mounted_esp=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1)
+	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1)
 
 	# Load kernel commands from config files
 	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
@@ -90,7 +114,7 @@ main () {
 		kernel_commands="$(tr -s "${IFS}" '\n' </proc/cmdline | grep -ve '^BOOT_IMAGE=' -e '^initrd=' | tr '\n' ' ')"
 	fi
 
-	for partition in $mounted_esp; do
+	for partition in $mounted_efi_partitions; do
 		
 		# Find partition uuid
 		partition_partuuid=$(lsblk "/dev/$partition" -lno PARTUUID)
@@ -102,30 +126,11 @@ main () {
 		# Find all .efi files on this partition
 		partition_efis="$(find $partition_mount \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi" -o -name "kernel-*.efi" -o -name "bzImage*.efi" \))"
 		
-		# ---- Remove invalid entries ----
-		IFS=$'\n'		
-		for entry in $(efibootmgr | grep $partition_partuuid); do
+		# Remove entries for efi files that no longer exist
+		remove_uefi_entries	
 
-			#Create path to efi file
-			#Not the nicest way to do it but for now its ok
-			local entry_efi_path=$(echo $entry | sed 's/.*File(//g' | sed 's/.efi.*/.efi/g' | sed 's/\\/\//g')
-			
-			local uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
-			
-			# Check if efi file exists and if this entry in in managed range
-			if [ ! -f "$partition_mount$entry_efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
-				
-				# Delete entry
-				echo "!!! EFI file $entry_efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!!"
-				efibootmgr -q -B -b $uefi_entry_hex || (echo "!!! Failed to delete entry $uefi_entry_hex !!!"; exit 1)
-
-			fi
-
-		done
-		# ----
-		
-
-		add_uefi_entry	
+		# Add missiong efi entries for efi files that exist
+		add_uefi_entries	
 	done
 
 }
