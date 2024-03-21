@@ -31,7 +31,6 @@ add_uefi_entries () (
 		# Add entry if it doesn't exist
 		if ! check_if_uefi_entry_exists; then
 		
-			local efi_file_path=${efi_file_path//\//\\}}
 			local bootnum=256 # 256 is decimal value of 0100
 			local efibootmgr="$(efibootmgr)"
 
@@ -42,28 +41,32 @@ add_uefi_entries () (
 
 			done
 			
-			# Get partition PARTLABEL
-			local partition_label="$(lsblk "/dev/$partition" -lno PARTLABEL)"
+			# Get kernel version
+			## Remove everything before /
+			local kernel_version="${efi_file_path//*\//}"
+			## Remove everything before first - to remove any prefixes
+			local kernel_version="${kernel_version/${kernel_version%%-*}-/}"
+			## Remove .efi suffix if it exists
+			if [[ "$kernel_version" == *".efi"* ]]; then
+				local kernel_version="${kernel_version/\.${kernel_version##*.}}"
+			fi
 
 			# Create label for UEFI entry
 			if [[ -n ${partition_label} ]]; then
-				local entry_label="$(echo $efi_file_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/.*vmlinux-//g" | sed "s/\.efi//g")-$partition_label"
+				local entry_label="$kernel_version-$(lsblk "/dev/$partition" -lno PARTLABEL)"
 			else
-				local entry_label="$(echo $efi_file_path | sed "s/.*vmlinuz-//g" | sed "s/.*kernel-//g" | sed "s/.*vmlinux-//g" | sed "s/\.efi//g")"
+				local entry_label="$kernel_version"
 			fi
 
-			# Try autodiscover iniramfs images	
-			local kernel_version="$( echo ${efi_file_path//*\\/} | sed "s/.efi//"  | sed "s/kernel-//" | sed "s/vmlinuz-//" | sed "s/vmlinux-//" )"
-			local initramfs_image="$(echo ${efi_file_path//\\/\/} | sed "s/${efi_file_path//*\\/}//")initramfs-$kernel_version.img"
+			# Check if corresponding initramfs exists	
+			local initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs-$kernel_version.img"
 			if [[ -f "$partition_mount$initramfs_image" ]]; then
-
 				kernel_commands="${kernel_commands} initrd=${initramfs_image//\//\\}"
-
 			fi
 
-			# Add entry
+			# Add new entry
 			echo "Adding UEFI entry for $efi_file_path found on $partition..."
-			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "$efi_file_path" -u "$kernel_commands" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_file_path !!!"; exit i1)
+			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "${efi_file_path//\//\\}" -u "$kernel_commands" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_file_path !!!"; exit i1)
 			
 		else
 		
@@ -124,7 +127,7 @@ main () {
 		partition_mount=$(lsblk "/dev/$partition" -lno MOUNTPOINTS | head -n 1)
 
 		# Find all .efi files on this partition
-		partition_efis="$(find $partition_mount \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi" -o -name "kernel-*.efi" -o -name "bzImage*.efi" \))"
+		partition_efis="$(find $partition_mount \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi" -o -name "kernel-*.efi" -o -name "bzImage*.efi" -o -name "zImage*.efi" -o -name "vmlinuz.efi" \))"
 		
 		# Remove entries for efi files that no longer exist
 		remove_uefi_entries	
