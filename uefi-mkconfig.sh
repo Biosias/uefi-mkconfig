@@ -53,7 +53,7 @@ add_uefi_entries () (
 			fi
 
 			# Try autodiscover iniramfs images	
-			local kernel_version="$( echo ${efi_file_path//*\\/} | sed "s/.efi//" | sed "s/-plain.*//" | sed "s/kernel-//" | sed "s/vmlinuz-//" | sed "s/vmlinux-//" | sed "s/-plain*//")"
+			local kernel_version="$( echo ${efi_file_path//*\\/} | sed "s/.efi//"  | sed "s/kernel-//" | sed "s/vmlinuz-//" | sed "s/vmlinux-//" )"
 			local initramfs_image="$(echo ${efi_file_path//\\/\/} | sed "s/${efi_file_path//*\\/}//")initramfs-$kernel_version.img"
 			if [[ -f "$partition_mount$initramfs_image" ]]; then
 
