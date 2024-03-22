@@ -50,8 +50,9 @@ add_uefi_entries () (
 			fi
 
 			# Create label for UEFI entry
+			local partition_label="$(lsblk "/dev/$partition" -lno PARTLABEL)"
 			if [[ -n ${partition_label} ]]; then
-				local entry_label="$kernel_version-$(lsblk "/dev/$partition" -lno PARTLABEL)"
+				local entry_label="$kernel_version-$partition_label"
 			else
 				local entry_label="$kernel_version"
 			fi
