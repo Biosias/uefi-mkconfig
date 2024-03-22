@@ -26,6 +26,8 @@ add_uefi_entries () (
 		# Prepare path which will be inserted into efibootmgr
 		local efi_file_path=$(echo "${efi_file//$partition_mount}")
 
+		local adding_kernel_commands="${kernel_commands}"
+
 		# Add entry if it doesn't exist
 		if ! check_if_uefi_entry_exists; then
 		
@@ -57,27 +59,33 @@ add_uefi_entries () (
 				local entry_label="$kernel_version"
 			fi
 
-			# Check if corresponding initramfs exists	
+			# Check if corresponding initramfs exists
 			local initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs-$kernel_version.img"
 			if [[ -f "$partition_mount$initramfs_image" ]]; then
-				kernel_commands="${kernel_commands} initrd=${initramfs_image//\//\\}"
+				local adding_kernel_commands="${adding_kernel_commands} initrd=${initramfs_image//\//\\}"
+			else
+				echo "!!! WARNING: No initramfs found for $efi_file_path !!!"
 			fi
 
 			# If shim is present in directory, presume it's used for every kernel in said directory
 			local shim="$(find $partition_mount${efi_file_path/${efi_file_path##*/}/} -maxdepth 1 -iname "*shim*.efi")"
-			echo $shim
 			if [[ "$shim" != "" ]]; then
-				kernel_commands="${efi_file_path//\//\\} ${kernel_commands}"
-				local efi_file_path="${efi_file_path/${efi_file_path##*/}/}$(echo ${shim/*\//} | head -n 1)"
+				local shim="${shim%%.efi*}.efi"
+				local adding_kernel_commands="${efi_file_path//\//\\} ${adding_kernel_commands}"
+				echo "Adding UEFI entry for $efi_file_path using shim $shim found on $partition..."
+				local efi_file_path="${efi_file_path/${efi_file_path##*/}/}${shim/*\//}"
+			else
+				echo "Adding UEFI entry for $efi_file_path found on $partition..."
 			fi
 
 			# Add new entry
-			echo "Adding UEFI entry for $efi_file_path found on $partition..."
-			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "${efi_file_path//\//\\}" -u "$kernel_commands" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_file_path !!!"; exit i1)
+			echo ""
+			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "${efi_file_path//\//\\}" -u "$adding_kernel_commands" &>/dev/null || (echo "!!! ERROR: Failed to add UEFI entry for $efi_file_path !!!"; exit i1)
 			
 		else
 		
-			echo "UEFI Entry already exists for $efi_file_path on $partition !"	
+			echo "UEFI Entry already exists for $efi_file_path on $partition !"
+			echo ""
 		
 		fi
 	done
@@ -97,9 +105,9 @@ remove_uefi_entries () {
 			local entry_efi_path="${entry_efi_path%%)*}"
 		else
 			### Remove everything after and included with last character )
-			local entry_efi_path="${entru_efi_path##*)}"
+			local entry_efi_path="${entry##*)}"
 			### Remove everything after and included with last space
-			local entry_efi_path="${entru_efi_path%% *)}"
+			local entry_efi_path="${entry_efi_path%% *}"
 		fi
 
 		# Get Hex number of a entry
@@ -115,7 +123,7 @@ remove_uefi_entries () {
 				
 			# Delete entry
 			echo "!!! EFI file $entry_efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!!"
-			efibootmgr -q -B -b $uefi_entry_hex || (echo "!!! Failed to delete entry $uefi_entry_hex !!!"; exit 1)
+			efibootmgr -q -B -b $uefi_entry_hex || (echo "!!! ERROR: Failed to delete entry $uefi_entry_hex !!!"; exit 1)
 
 		fi
 
