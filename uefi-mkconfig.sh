@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
-#NEEDED:
-## Shim booting
 
 check_if_uefi_entry_exists () {
-	for entry in $(efibootmgr); do
-		
+	for entry in $(efibootmgr -u); do
 		# Added last case because while testing this script I found that sometimes, firmware uppercases the path and reverts backslash to forward slash
 		if [[ "$entry" == *"$partition_partuuid"* ]]; then
-			if [[ "$entry" == *"(${efi_file_path//\//\\}"* ]]; then
+			if [[ "$entry" == *"(${efi_file_path//\//\\}"* ]] || [[ "$entry" == *"(${efi_file_path^^}"* ]]; then
 	
 				return 0
 
-			elif [[ "$entry" == *"(${efi_file_path^^}"* ]]; then
-
+			# Added for handling shim entries
+			elif [[ "$entry" ==  *")${efi_file_path//\//\\}"* ]] || [[ "$entry" ==  *")${efi_file_path^^}"* ]]; then
+		
 				return 0
-
+	
 			fi
 		fi
 			
@@ -64,6 +62,14 @@ add_uefi_entries () (
 				kernel_commands="${kernel_commands} initrd=${initramfs_image//\//\\}"
 			fi
 
+			# If shim is present in directory, presume it's used for every kernel in said directory
+			local shim="$(find $partition_mount${efi_file_path/${efi_file_path##*/}/} -maxdepth 1 -iname "*shim*.efi")"
+			echo $shim
+			if [[ "$shim" != "" ]]; then
+				kernel_commands="${efi_file_path//\//\\} ${kernel_commands}"
+				local efi_file_path="${efi_file_path/${efi_file_path##*/}/}$(echo ${shim/*\//} | head -n 1)"
+			fi
+
 			# Add new entry
 			echo "Adding UEFI entry for $efi_file_path found on $partition..."
 			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "${efi_file_path//\//\\}" -u "$kernel_commands" &>/dev/null || (echo "!!! Failed to add UEFI entry for $efi_file_path !!!"; exit i1)
@@ -79,16 +85,32 @@ add_uefi_entries () (
 remove_uefi_entries () {
 
 	IFS=$'\n'		
-	for entry in $(efibootmgr | grep $partition_partuuid); do
+	for entry in $(efibootmgr -u | grep $partition_partuuid); do
 
 		#Create path to efi file
-		#Not the nicest way to do it but for now its ok
-		local entry_efi_path=$(echo $entry | sed 's/.*File(//g' | sed 's/.efi.*/.efi/g' | sed 's/\\/\//g')
-			
-		local uefi_entry_hex="$(echo $entry | cut -d' ' -f1 | sed 's/\*.*//g' | sed 's/Boot//g')"
-			
+		## Decide if entry is shim entry or not
+		if [[ "$entry" !=  *"File("*"shim"*")"* ]] && [[ "$entry" !=  *"File("*"SHIM"*")"* ]]; then
+			### Remove everything before first mention of string File(
+			local entry_efi_path="${entry/${entry%%File(*}File\(/}"
+			### Remove everything after first ) character
+			local entry_efi_path="${entry_efi_path%%)*}"
+		else
+			### Remove everything after and included with last character )
+			local entry_efi_path="${entru_efi_path##*)}"
+			### Remove everything after and included with last space
+			local entry_efi_path="${entru_efi_path%% *)}"
+		fi
+
+		# Get Hex number of a entry
+		## Remove everything after first space
+		local uefi_entry_hex="${entry%%\ *}"
+		## Remove string Boot
+		local uefi_entry_hex="${uefi_entry_hex/Boot/}"
+		## Remove character *
+		local uefi_entry_hex="${uefi_entry_hex/\*/}"
+
 		# Check if efi file exists and if this entry in in managed range
-		if [ ! -f "$partition_mount$entry_efi_path" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
+		if [ ! -f "$partition_mount${entry_efi_path//\\/\/}" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
 				
 			# Delete entry
 			echo "!!! EFI file $entry_efi_path on $partition doesn't exist. Deleting its entry $uefi_entry_hex !!!"
