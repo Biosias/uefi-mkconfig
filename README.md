@@ -40,7 +40,7 @@ Script WILL NOT regenerate entries after kernel commands config has been modifie
 
 POSSIBLE FUTURE FEATURE: Regenerate all entries.
 
-## Entry labling
+## Entry labeling
 
 Each entry will be labeled with kernel version.
 To make it easier to differentiate entires on different partitions from each other, PARTLABEL will be appended to the EFI entry label.
