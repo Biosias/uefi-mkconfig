@@ -26,8 +26,6 @@ add_uefi_entries () (
 		# Prepare path which will be inserted into efibootmgr
 		local efi_file_path=$(echo "${efi_file//$partition_mount}")
 
-		local adding_kernel_commands="${kernel_commands}"
-
 		# Add entry if it doesn't exist
 		if ! check_if_uefi_entry_exists; then
 		
@@ -58,8 +56,9 @@ add_uefi_entries () (
 			# Check if corresponding initramfs exists
 			local initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs-$kernel_version.img"
 			if [[ -f "$partition_mount$initramfs_image" ]]; then
-				local adding_kernel_commands="${adding_kernel_commands} initrd=${initramfs_image//\//\\}"
+				local adding_kernel_commands="${kernel_commands} initrd=${initramfs_image//\//\\}"
 			else
+				local adding_kernel_commands="${kernel_commands}"
 				echo "!!! WARNING: No initramfs found for $efi_file_path !!!"
 			fi
 
