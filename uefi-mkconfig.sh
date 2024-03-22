@@ -31,14 +31,10 @@ add_uefi_entries () (
 		# Add entry if it doesn't exist
 		if ! check_if_uefi_entry_exists; then
 		
-			local bootnum=256 # 256 is decimal value of 0100
-			local efibootmgr="$(efibootmgr)"
-
 			# Find first free hex address larger than or equal to 0100 for new UEFI boot entry
-			while [ "$(echo ${efibootmgr/*Boot$(printf %04X $bootnum)*/})" == "" ]; do
-
+			local bootnum=256 # 256 is decimal value of 0100
+			while [[ "$(efibootmgr -u)" == *"Boot$(printf %04X $bootnum)"* ]]; do
 				local bootnum=$(($bootnum + 1))
-
 			done
 			
 			# Get kernel version
