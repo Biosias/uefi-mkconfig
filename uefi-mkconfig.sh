@@ -172,16 +172,24 @@ main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1)
 	proc_kernel_commands=False
+	
+	einfo "Running uefi-mkconfig..."
+
+	[[ ${EUID} -eq 0 ]] || die "Please run uefi-mkconfig as root!"
+
+	[[ -n ${mounted_efi_partitions} ]] || die "No mounted efi partitions!"
 
 	# Load kernel commands from config files
 	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
-		if [[ -f "${INSTALLKERNEL_CONF_ROOT}/cmdline" ]]; then
-			kernel_commands="$(tr -s "${IFS}" ' ' <"${KERNEL_INSTALL_CONF_ROOT}/cmdline")"
+		if [[ -f "${INSTALLKERNEL_CONF_ROOT}/uefi-mkconfig" ]]; then
+			kernel_commands="$(tr -s "${IFS}" ' ' <"${KERNEL_INSTALL_CONF_ROOT}/uefi-mkconfig")"
 		fi
-	elif [[ -f /etc/kernel/cmdline ]]; then
-		kernel_commands="$(tr -s "${IFS}" ' ' </etc/kernel/cmdline)"
-	elif [[ -f /usr/lib/kernel/cmdline ]]; then
-		kernel_commands="$(tr -s "${IFS}" ' ' </usr/lib/kernel/cmdline)"
+	elif [[ -f /etc/default/uefi-mkconfig ]]; then
+		kernel_commands="$(tr -s "${IFS}" ' ' </etc/default/uefi-mkconfig)"
+	elif [[ -f /etc/kernel/uefi-mkconfig ]]; then
+		kernel_commands="$(tr -s "${IFS}" ' ' </etc/kernel/uefi-mkconfig)"
+	elif [[ -f /usr/lib/kernel/uefi-mkconfig ]]; then
+		kernel_commands="$(tr -s "${IFS}" ' ' </usr/lib/kernel/uefi-mkconfig)"
 	else
 		kernel_commands="$(tr -s "${IFS}" '\n' </proc/cmdline | grep -ve '^BOOT_IMAGE=' -e '^initrd=' | tr '\n' ' ')"
 		proc_kernel_commands=True
