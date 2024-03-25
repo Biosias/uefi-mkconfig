@@ -107,35 +107,52 @@ remove_uefi_entries () {
 	IFS=$'\n'		
 	for entry in $(efibootmgr -u | grep $partition_partuuid); do
 
-		#Create path to efi file
-		## Decide if entry is shim entry or not
-		if [[ "$entry" !=  *"File("*"shim"*")"* ]] && [[ "$entry" !=  *"File("*"SHIM"*")"* ]]; then
-			### Remove everything before first mention of string File(
-			local entry_efi_path="${entry/${entry%%File(*}File\(/}"
-			### Remove everything after first ) character
-			local entry_efi_path="${entry_efi_path%%)*}"
-		else
-			### Remove everything after and included with last character )
-			local entry_efi_path="${entry##*)}"
-			### Remove everything after and included with last space
-			local entry_efi_path="${entry_efi_path%% *}"
-		fi
-
 		# Get Hex number of a entry
-		## Remove everything after first space
-		local uefi_entry_hex="${entry%%\ *}"
-		## Remove string Boot
-		local uefi_entry_hex="${uefi_entry_hex/Boot/}"
-		## Remove character *
-		local uefi_entry_hex="${uefi_entry_hex/\*/}"
+		local uefi_entry_hex="${entry:4:4}"
 
-		# Check if efi file exists and if this entry in in managed range
-		if [ ! -f "$partition_mount${entry_efi_path//\\/\/}" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
+		if [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
+		
+			# Get Entry kernel commands
+			## Remove everything before last ) so only kernel commands remain
+			local entry_kernel_commands=${entry##*)}
+			## Remove initramfs entry from the kernel commands
+			local entry_kernel_commands=${entry_kernel_commands// initrd*}
+
+			# Create path to efi file
+			## Decide if entry is shim entry or not
+			if [[ "$entry" !=  *"File("*"shim"*")"* ]] && [[ "$entry" !=  *"File("*"SHIM"*")"* ]]; then
+				### Remove everything before first mention of string File(
+				local entry_efi_path="${entry/${entry%%File(*}File\(/}"
+				### Remove everything after first ) character
+				local entry_efi_path="${entry_efi_path%%)*}"
+			else
+				### Remove everything after and included with last character )
+				local entry_efi_path="${entry##*)}"
+				### Remove everything after and included with last space
+				local entry_efi_path="${entry_efi_path%% *}"
+	
+				### Remove entry with kernel path in case of booting with shim
+				local entry_kernel_commands=${entry_kernel_commands/#\\*.efi }
+			fi
+	
+			# Check if efi file exists and if this entry in in managed range	
+			if [ ! -f "$partition_mount${entry_efi_path//\\/\/}" ]; then
 				
-			# Delete entry
-			ewarn "Deleting UEFI entry \"$uefi_entry_hex\"! Its EFI file \"$partition_mount${entry_efi_path//\\/\/}\" wasn't found."
-			efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
-
+				# Delete entry
+				ewarn "Deleting UEFI entry \"$uefi_entry_hex\"! Its EFI file \"$partition_mount${entry_efi_path//\\/\/}\" wasn't found."
+				#efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
+			
+			# Delete entry if kernel commands are not the same as in config file. Don't do this if kernel commands are taken from /proc/cmdline
+			elif [[ "$kernel_commands" != "$entry_kernel_commands" ]] && [[ $proc_kernel_commands == False ]]; then
+				
+				echo $kernel_commands
+				echo $entry_kernel_commands
+				# Delete entry for regeneration
+				ewarn "Deleting UEFI entry \"$uefi_entry_hex\" regeneration! Kernel commads in configuration differ from the ones in this entry."
+				#efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
+	
+			fi
+	
 		fi
 
 	done
@@ -145,6 +162,7 @@ remove_uefi_entries () {
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1)
+	proc_kernel_commands=False
 
 	# Load kernel commands from config files
 	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
@@ -157,6 +175,7 @@ main () {
 		kernel_commands="$(tr -s "${IFS}" ' ' </usr/lib/kernel/cmdline)"
 	else
 		kernel_commands="$(tr -s "${IFS}" '\n' </proc/cmdline | grep -ve '^BOOT_IMAGE=' -e '^initrd=' | tr '\n' ' ')"
+		proc_kernel_commands=True
 	fi
 
 	for partition in $mounted_efi_partitions; do
@@ -171,8 +190,8 @@ main () {
 		# Find all .efi files on this partition
 		partition_efis="$(find $partition_mount \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi" -o -name "kernel-*.efi" -o -name "bzImage*.efi" -o -name "zImage*.efi" -o -name "vmlinuz.efi" \))"
 		
-		# Remove entries for efi files that no longer exist
-		remove_uefi_entries	
+		# Remove invalid entries
+		remove_uefi_entries
 
 		# Add missiong efi entries for efi files that exist
 		add_uefi_entries	
