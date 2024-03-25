@@ -145,8 +145,6 @@ remove_uefi_entries () {
 			# Delete entry if kernel commands are not the same as in config file. Don't do this if kernel commands are taken from /proc/cmdline
 			elif [[ "$kernel_commands" != "$entry_kernel_commands" ]] && [[ $proc_kernel_commands == False ]]; then
 				
-				echo $kernel_commands
-				echo $entry_kernel_commands
 				# Delete entry for regeneration
 				ewarn "Deleting UEFI entry \"$uefi_entry_hex\" regeneration! Kernel commads in configuration differ from the ones in this entry."
 				#efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
