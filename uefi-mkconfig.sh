@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 die() {
 	echo -e " ${NOCOLOR-\e[1;31m*\e[0m }${*}" >&2
@@ -48,6 +48,9 @@ add_uefi_entries () (
 				local bootnum=$(($bootnum + 1))
 			done
 			
+			# Convert chosen entry ID into hex
+			local bootnum="$(printf %04X $bootnum)"
+
 			# Get kernel version
 			## Remove everything before /
 			local kernel_version="${efi_file_path//*\//}"
@@ -71,14 +74,14 @@ add_uefi_entries () (
 
 			# If shim is present in directory, presume it's used for every kernel in said directory
 			local shim="$(find $partition_mount${efi_file_path/${efi_file_path##*/}/} -maxdepth 1 -iname "*shim*.efi")"
-			if [[ "$shim" != "" ]]; then
+			if [[ -n "$shim" ]]; then
 				local shim="${shim%%.efi*}.efi"
 				local adding_kernel_commands="${efi_file_path//\//\\} ${kernel_commands}"
-				ewarn "Creating UEFI entry for \"$partition_mount$efi_file_path\" using shim \"$shim\" found on \"$partition\"..."
+				ewarn "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" using shim \"$shim\" found on \"$partition\"..."
 				local efi_file_path="${efi_file_path/${efi_file_path##*/}/}${shim/*\//}"
 			else
 				local adding_kernel_commands="${kernel_commands}"
-				ewarn "Creating UEFI entry for \"$partition_mount$efi_file_path\" found on \"$partition\"..."
+				ewarn "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."
 			fi
 
 			# Check if corresponding initramfs exists
@@ -89,7 +92,7 @@ add_uefi_entries () (
 			fi
 
 			# Add new entry
-			efibootmgr --create -b $(printf %04X $bootnum) --disk /dev/$partition --label "$entry_label" --loader "${efi_file_path//\//\\}" -u "$adding_kernel_commands" &>/dev/null || die "Failed to add UEFI entry for \"$efi_file_path\""
+			efibootmgr --create -b "$bootnum" --disk /dev/$partition --label "$entry_label" --loader "${efi_file_path//\//\\}" -u "$adding_kernel_commands" &>/dev/null || die "Failed to add UEFI entry for \"$efi_file_path\""
 			
 		else
 		
@@ -130,7 +133,7 @@ remove_uefi_entries () {
 		if [ ! -f "$partition_mount${entry_efi_path//\\/\/}" ] && [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
 				
 			# Delete entry
-			ewarn "Deleting entry \"$uefi_entry_hex\"! Its EFI file \"$partition_mount${entry_efi_path//\\/\/}\" wasn't found."
+			ewarn "Deleting UEFI entry \"$uefi_entry_hex\"! Its EFI file \"$partition_mount${entry_efi_path//\\/\/}\" wasn't found."
 			efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
 
 		fi
