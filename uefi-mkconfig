@@ -197,6 +197,14 @@ main () {
 		proc_kernel_commands=True
 	fi
 
+	# Strip initrd=* from config file
+	for strip_config in $kernel_commands; do
+		
+		[[ "$strip_config" != *"initrd="* ]] && strip_kernel_commands="$strip_kernel_commands $strip_config"
+
+	done
+	kernel_commands="$strip_kernel_commands"
+
 	for partition in $mounted_efi_partitions; do
 		
 		# Find partition uuid
@@ -210,10 +218,10 @@ main () {
 		partition_efis="$(find $partition_mount \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi" -o -name "kernel-*.efi" -o -name "bzImage*.efi" -o -name "zImage*.efi" -o -name "vmlinuz.efi" \))"
 		
 		# Remove invalid entries
-		remove_uefi_entries
+		#remove_uefi_entries
 
 		# Add missiong efi entries for efi files that exist
-		add_uefi_entries	
+		#add_uefi_entries	
 	done
 
 }
