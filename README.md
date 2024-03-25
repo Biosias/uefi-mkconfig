@@ -36,9 +36,7 @@ For configuring kernel commands following config options can be used:
 
 if none of these exist, commands will be taken from /proc/cmdline.
 
-Script WILL NOT regenerate entries after kernel commands config has been modified. If this is needed, please manually delete those entries that need to be regenerated.
-
-POSSIBLE FUTURE FEATURE: Regenerate all entries.
+Script WILL regenerate entries after kernel commands config has been modified.
 
 ## Entry labeling
 

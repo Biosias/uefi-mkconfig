@@ -19,11 +19,15 @@ check_if_uefi_entry_exists () {
 		if [[ "$entry" == *"$partition_partuuid"* ]]; then
 			if [[ "$entry" == *"(${efi_file_path//\//\\}"* ]] || [[ "$entry" == *"(${efi_file_path^^}"* ]]; then
 	
+				# Get Hex number of a entry
+				uefi_entry_hex="${entry:4:4}"
 				return 0
 
 			# Added for handling shim entries
 			elif [[ "$entry" ==  *")${efi_file_path//\//\\}"* ]] || [[ "$entry" ==  *")${efi_file_path^^}"* ]]; then
 		
+				# Get Hex number of a entry
+				uefi_entry_hex="${entry:4:4}"
 				return 0
 	
 			fi
@@ -46,6 +50,12 @@ add_uefi_entries () (
 			local bootnum=256 # 256 is decimal value of 0100
 			while [[ "$(efibootmgr -u)" == *"Boot$(printf %04X $bootnum)"* ]]; do
 				local bootnum=$(($bootnum + 1))
+				
+				# Die if script exceeds managed range 0100-0200
+				if [[ $bootnum > 512 ]]; then
+					die "All IDs, within managed range by uefi-mkconfig, are full!"
+				fi
+
 			done
 			
 			# Convert chosen entry ID into hex
@@ -96,7 +106,7 @@ add_uefi_entries () (
 			
 		else
 		
-			einfo "Existing UEFI Entry for \"$partition_mount$efi_file_path\" from partition \"$partition\" has been found."
+			einfo "Existing UEFI Entry \"$uefi_entry_hex\" for \"$partition_mount$efi_file_path\" from partition \"$partition\" has been found."
 		
 		fi
 	done
@@ -109,8 +119,9 @@ remove_uefi_entries () {
 
 		# Get Hex number of a entry
 		local uefi_entry_hex="${entry:4:4}"
-
-		if [[ $(echo $((16#$uefi_entry_hex))) > 255 ]]; then
+		
+		# Check if the entry is within range managed by uefi-mkconfig
+		if [[ $((16#$uefi_entry_hex)) > 255 ]] && [[ $((16#$uefi_entry_hex)) < 513 ]]; then
 		
 			# Get Entry kernel commands
 			## Remove everything before last ) so only kernel commands remain
@@ -146,7 +157,7 @@ remove_uefi_entries () {
 			elif [[ "$kernel_commands" != "$entry_kernel_commands" ]] && [[ $proc_kernel_commands == False ]]; then
 				
 				# Delete entry for regeneration
-				ewarn "Deleting UEFI entry \"$uefi_entry_hex\" regeneration! Kernel commads in configuration differ from the ones in this entry."
+				ewarn "Deleting UEFI entry \"$uefi_entry_hex\" for regeneration! Kernel commads in configuration differ from the ones in this entry."
 				efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
 	
 			fi
