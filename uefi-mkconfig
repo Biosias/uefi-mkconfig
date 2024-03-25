@@ -179,6 +179,8 @@ main () {
 
 	[[ -n ${mounted_efi_partitions} ]] || die "No mounted efi partitions!"
 
+	[[ -n "$(command -v efibootmgr)" ]] || die "efibootmgr dependency not found!" 
+
 	# Load kernel commands from config files
 	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
 		if [[ -f "${INSTALLKERNEL_CONF_ROOT}/uefi-mkconfig" ]]; then
