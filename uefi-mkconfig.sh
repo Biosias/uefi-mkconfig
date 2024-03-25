@@ -140,14 +140,14 @@ remove_uefi_entries () {
 				
 				# Delete entry
 				ewarn "Deleting UEFI entry \"$uefi_entry_hex\"! Its EFI file \"$partition_mount${entry_efi_path//\\/\/}\" wasn't found."
-				#efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
+				efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
 			
 			# Delete entry if kernel commands are not the same as in config file. Don't do this if kernel commands are taken from /proc/cmdline
 			elif [[ "$kernel_commands" != "$entry_kernel_commands" ]] && [[ $proc_kernel_commands == False ]]; then
 				
 				# Delete entry for regeneration
 				ewarn "Deleting UEFI entry \"$uefi_entry_hex\" regeneration! Kernel commads in configuration differ from the ones in this entry."
-				#efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
+				efibootmgr -q -B -b $uefi_entry_hex || die "Failed to delete entry \"$uefi_entry_hex\""
 	
 			fi
 	
