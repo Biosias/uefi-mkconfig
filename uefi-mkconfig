@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 #TODO:
-#Rethink the ordering of added entries
-## Revers the order of added kernels
-## Revers the order of partition scanning
 #BUG: Recognising entries when firmware uppercased them is not working
 
 die() {
@@ -178,7 +175,7 @@ remove_uefi_entries () {
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1)
+	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1 | sort -r)
 	proc_kernel_commands=
 	
 	einfo "Running uefi-mkconfig..."
@@ -223,7 +220,7 @@ main () {
 		partition_mount=$(lsblk /dev/"$partition" -lno MOUNTPOINTS | head -n 1)
 
 		# Find all .efi files on this partition
-		partition_efis="$(find "$partition_mount" \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi" -o -name "kernel-*.efi" -o -name "bzImage*.efi" -o -name "zImage*.efi" -o -name "vmlinuz.efi" \))"
+		partition_efis="$(find "$partition_mount" \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi" -o -name "kernel-*.efi" -o -name "bzImage*.efi" -o -name "zImage*.efi" -o -name "vmlinuz.efi" \) | sort -r)"
 		
 		# Remove invalid entries
 		remove_uefi_entries
