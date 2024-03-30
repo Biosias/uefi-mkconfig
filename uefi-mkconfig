@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-#TODO:
-#BUG: Recognising entries when firmware uppercased them is not working
 
 die() {
 	echo -e " ${NOCOLOR-\e[1;31m*\e[0m }${*}" >&2
@@ -16,17 +14,20 @@ ewarn() {
 }
 
 check_if_uefi_entry_exists () {
+	local efi_file_path_check
+	efi_file_path_check="${efi_file_path//\//\\}"
+
 	for entry in $(efibootmgr -u); do
 		# Added last case because while testing this script I found that sometimes, firmware uppercases the path and reverts backslash to forward slash
 		if [[ "$entry" == *"$partition_partuuid"* ]]; then
-			if [[ "$entry" == *"(${efi_file_path//\//\\}"* ]] || [[ "$entry" == *"(${efi_file_path^^}"* ]]; then
+			if [[ "$entry" == *"(${efi_file_path_check}"* ]] || [[ "$entry" == *"(${efi_file_path_check^^}"* ]]; then
 	
 				# Get Hex number of a entry
 				uefi_entry_hex="${entry:4:4}"
 				return 0
 
 			# Added for handling shim entries
-			elif [[ "$entry" ==  *")${efi_file_path//\//\\}"* ]] || [[ "$entry" ==  *")${efi_file_path^^}"* ]]; then
+			elif [[ "$entry" ==  *"(.${efi_file_path_check}"* ]] || [[ "$entry" ==  *"(.${efi_file_path_check^^}"* ]]; then
 		
 				# Get Hex number of a entry
 				uefi_entry_hex="${entry:4:4}"
@@ -130,26 +131,32 @@ remove_uefi_entries () {
 		
 			# Get Entry kernel commands
 			## Remove everything before last ) so only kernel commands remain
-			local entry_kernel_commands=${entry##*)}
-			## Remove initramfs entry from the kernel commands
-			local entry_kernel_commands=${entry_kernel_commands// initrd*}
 
 			# Create path to efi file
 			## Decide if entry is shim entry or not
 			if [[ "$entry" ==  *"File("*"shim"*")"* ]] || [[ "$entry" ==  *"File("*"SHIM"*")"* ]]; then
 				### Remove everything after and included with last character )
-				local entry_efi_path="${entry##*)}"
+				#echo $entry
+				local entry_efi_path="${entry##*(\.}"
 				### Remove everything after and included with last space
-				local entry_efi_path="${entry_efi_path%% *}"
-	
-				### Remove entry with kernel path in case of booting with shim
-				local entry_kernel_commands=${entry_kernel_commands/#\\*.efi }
+				local entry_efi_path="${entry_efi_path%%\ *}"
+				
+				### Prepare Entry kernel commands in case of shim booting
+				local entry_kernel_commands=${entry##*\.efi}
+				local entry_kernel_commands=${entry_kernel_commands//)*}
+				local entry_kernel_commands=${entry_kernel_commands/#\ }
 			else
 				### Remove everything before first mention of string File(
 				local entry_efi_path="${entry/${entry%%File(*}File\(/}"
 				### Remove everything after first ) character
 				local entry_efi_path="${entry_efi_path%%)*}"
+
+				### Prepare Entry kernel commands
+				local entry_kernel_commands=${entry/#*\.efi)}
 			fi
+			
+			# Remove initramfs entry from the kernel commands
+			local entry_kernel_commands=${entry_kernel_commands// initrd*}
 	
 			# Check if efi file exists and if this entry in in managed range	
 			if [ ! -f "$partition_mount${entry_efi_path//\\/\/}" ]; then
