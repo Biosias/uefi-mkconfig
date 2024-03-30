@@ -139,12 +139,7 @@ remove_uefi_entries () {
 
 			# Create path to efi file
 			## Decide if entry is shim entry or not
-			if [[ "$entry" !=  *"File("*"shim"*")"* ]] && [[ "$entry" !=  *"File("*"SHIM"*")"* ]]; then
-				### Remove everything before first mention of string File(
-				local entry_efi_path="${entry/${entry%%File(*}File\(/}"
-				### Remove everything after first ) character
-				local entry_efi_path="${entry_efi_path%%)*}"
-			else
+			if [[ "$entry" ==  *"File("*"shim"*")"* ]] || [[ "$entry" ==  *"File("*"SHIM"*")"* ]]; then
 				### Remove everything after and included with last character )
 				local entry_efi_path="${entry##*)}"
 				### Remove everything after and included with last space
@@ -152,6 +147,11 @@ remove_uefi_entries () {
 	
 				### Remove entry with kernel path in case of booting with shim
 				local entry_kernel_commands=${entry_kernel_commands/#\\*.efi }
+			else
+				### Remove everything before first mention of string File(
+				local entry_efi_path="${entry/${entry%%File(*}File\(/}"
+				### Remove everything after first ) character
+				local entry_efi_path="${entry_efi_path%%)*}"
 			fi
 	
 			# Check if efi file exists and if this entry in in managed range	
