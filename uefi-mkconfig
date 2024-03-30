@@ -87,6 +87,9 @@ add_uefi_entries () (
 			# Create path to initramfs
 			local initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs-$kernel_version.img"
 
+			# Add .old suffix to initramfs in case we are handling kernel with -old suffix
+			[[ "$efi_file_path" == *"-old."* ]] && initramfs_image="${initramfs_image/-old}.old"
+
 			# If shim is present in directory, presume it's used for every kernel in said directory
 			local shim
 			shim="$(find "$partition_mount""${efi_file_path/${efi_file_path##*/}/}" -maxdepth 1 -iname "*shim*.efi")"
