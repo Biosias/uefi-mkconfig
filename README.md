@@ -29,6 +29,8 @@ Please don't put `initrd=` into kernel commands manually. It will be discarded!
 If shim file is present in a certain directory, all kernels residing within this directory will be configured to use it.
 If multiple shim files are in the same directory, only the first one, sorted alphabetically,will be used.
 
+For now, if SHIM booting is needed, kernel and shim have to be present within directory /boot/EFI or its subdirectory.
+
 ## Custom/Managed entries
 
 Script will create and delete ONLY EFI entries with hex ID larger or equal to 0100 and less or equal to 0200.
@@ -52,3 +54,10 @@ Script WILL regenerate entries after kernel commands config have been modified.
 
 Each entry will be labeled with kernel version + to make it easier to differentiate entires 
 on different partitions from each other, PARTLABEL will be appended to the EFI entry label.
+
+## Credits
+Special thanks to:
+
+@AndrewAmmerlaan for very helpful feedback
+
+[Excello](https://www.excello.cz/en/) for letting me contribute during working hours

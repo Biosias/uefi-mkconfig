@@ -145,7 +145,6 @@ remove_uefi_entries () {
 			## Decide if entry is shim entry or not
 			if [[ "$entry" ==  *"File("*"shim"*")"* ]] || [[ "$entry" ==  *"File("*"SHIM"*")"* ]]; then
 				### Remove everything after and included with last character )
-				#echo $entry
 				entry_efi_path="${entry##*(\.}"
 				### Remove everything after and included with last space
 				entry_efi_path="${entry_efi_path%%\ *}"
