@@ -236,7 +236,7 @@ main () {
 
 		# Find all .efi files on this partition
 		partition_efis="$(find "$partition_mount" \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi"\
-		-o -name "kernel-*.efi" -o -name "bzImage*.efi" -o -name "zImage*.efi" -o -name "vmlinuz.efi" \) | sort -r)"
+		-o -name "kernel-*.efi" -o -name "bzImage*.efi" -o -name "zImage*.efi" -o -name "vmlinuz.efi" \) | sort -V)"
 		
 		# Remove invalid entries
 		remove_uefi_entries
