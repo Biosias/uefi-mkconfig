@@ -14,6 +14,7 @@ ewarn() {
 }
 
 check_if_uefi_entry_exists () {
+	local IFS=$'\n'
 	local efi_file_path_check
 	efi_file_path_check="${efi_file_path//\//\\}"
 
@@ -41,7 +42,7 @@ check_if_uefi_entry_exists () {
 }
 
 add_uefi_entries () (
-	for efi_file in ${partition_efis[@]}; do
+	for efi_file in $partition_efis; do
 		
 		# Prepare path which will be inserted into efibootmgr
 		local efi_file_path
@@ -127,8 +128,7 @@ add_uefi_entries () (
 )
 
 remove_uefi_entries () {
-
-	IFS=$'\n'		
+	local IFS=$'\n'		
 	for entry in $(efibootmgr -u | grep "$partition_partuuid"); do
 
 		# Get Hex number of a entry
@@ -235,28 +235,18 @@ main () {
 		partition_mount=$(lsblk /dev/"$partition" -lno MOUNTPOINTS | head -n 1)
 
 		# Find all .efi files on this partition
-		prefixes=('vmlinuz' 'vmlinux-' 'kernel-' 'bzImage' 'zImage')
-		kernel_images=()
-
-		for prefix in ${prefixes[@]}; do
-			find_results="$(find "$partition_mount" -name "$prefix*.efi")"
-        		if [[ -n $find_results ]]; then 
-				# Break apart list to array
-				IFS=' ' read -r -a efis <<< "$(echo $find_results)"
-			fi
-        		kernel_images+=(${efis[@]})
-        		efis=()
+		kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
+		for prefix in $kernel_prefixes; do
+			find_results="$(find "$partition_mount" -name "$prefix*.efi" -printf "%f\n")"
+        		[[ -n "$find_results" ]] && kernel_images+="$find_results "
 		done
-
-		# Cut out path and sort array by version
-		IFS=$'\n'
-		kernel_images=($(sort -uV <<<"${kernel_images[@]/${partition_mount}*\/}"))
+		kernel_images="$(sort -uV <<< "$kernel_images")"
 
 		# Add path back to the kernel image
-		for kernel_image in ${kernel_images[@]}; do
-        		partition_efis+=("$(find "$partition_mount" -name "$kernel_image")")
+		for kernel_image in $kernel_images; do
+        		partition_efis+="$(find "$partition_mount" -name "$kernel_image") "
 		done
-
+		
 		# Remove invalid entries
 		remove_uefi_entries
 
