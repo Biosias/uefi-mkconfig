@@ -41,7 +41,7 @@ check_if_uefi_entry_exists () {
 }
 
 add_uefi_entries () (
-	for efi_file in $partition_efis; do
+	for efi_file in ${partition_efis[@]}; do
 		
 		# Prepare path which will be inserted into efibootmgr
 		local efi_file_path
@@ -235,9 +235,28 @@ main () {
 		partition_mount=$(lsblk /dev/"$partition" -lno MOUNTPOINTS | head -n 1)
 
 		# Find all .efi files on this partition
-		partition_efis="$(find "$partition_mount" \( -name "vmlinuz-*.efi" -o -name "vmlinux-*.efi" -o -name "gentoo-*.efi"\
-		-o -name "kernel-*.efi" -o -name "bzImage*.efi" -o -name "zImage*.efi" -o -name "vmlinuz.efi" \) | sort -V)"
-		
+		prefixes=('vmlinuz' 'vmlinux-' 'kernel-' 'bzImage' 'zImage')
+		kernel_images=()
+
+		for prefix in ${prefixes[@]}; do
+			find_results="$(find "$partition_mount" -name "$prefix*.efi")"
+        		if [[ -n $find_results ]]; then 
+				# Break apart list to array
+				IFS=' ' read -r -a efis <<< "$(echo $find_results)"
+			fi
+        		kernel_images+=(${efis[@]})
+        		efis=()
+		done
+
+		# Cut out path and sort array by version
+		IFS=$'\n'
+		kernel_images=($(sort -V <<<"${kernel_images[@]/${partition_mount}*\/}"))
+
+		# Add path back to the kernel image
+		for kernel_image in ${kernel_images[@]}; do
+        		partition_efis+=("$(find "$partition_mount" -name "$kernel_image")")
+		done
+
 		# Remove invalid entries
 		remove_uefi_entries
 
