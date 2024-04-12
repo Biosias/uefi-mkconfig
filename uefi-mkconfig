@@ -250,7 +250,7 @@ main () {
 
 		# Cut out path and sort array by version
 		IFS=$'\n'
-		kernel_images=($(sort -V <<<"${kernel_images[@]/${partition_mount}*\/}"))
+		kernel_images=($(sort -uV <<<"${kernel_images[@]/${partition_mount}*\/}"))
 
 		# Add path back to the kernel image
 		for kernel_image in ${kernel_images[@]}; do
