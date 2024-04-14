@@ -192,6 +192,7 @@ main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1 | sort -r)
 	proc_kernel_commands=
+	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	
 	einfo "Running uefi-mkconfig..."
 
@@ -217,6 +218,15 @@ main () {
 		proc_kernel_commands=1
 	fi
 
+	# Get distro prefix
+	if [[ -f /etc/os-release ]]; then
+		distro_prefix="$(grep "^ID=" /etc/os-release)"
+		kernel_prefixes="${kernel_prefixes} ${distro_prefix/*=}-"
+	elif [[ -f /usr/lib/os-release ]]; then
+		distro_prefix="$(grep "^ID=" /usr/lib/os-release)"
+		kernel_prefixes="${kernel_prefixes} ${distro_prefix/*=}-"
+	fi
+	
 	# Strip initrd=* from config file
 	for strip_config in $kernel_commands; do
 		
@@ -235,7 +245,6 @@ main () {
 		partition_mount=$(lsblk /dev/"$partition" -lno MOUNTPOINTS | head -n 1)
 
 		# Find all .efi files on this partition
-		kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 		for prefix in $kernel_prefixes; do
 			find_results="$(find "$partition_mount" -name "$prefix*.efi" -printf "%f\n")"
         		[[ -n "$find_results" ]] && kernel_images+="$find_results "
@@ -248,10 +257,10 @@ main () {
 		done
 		
 		# Remove invalid entries
-		remove_uefi_entries
+		#remove_uefi_entries
 
 		# Add missiong efi entries for efi files that exist
-		add_uefi_entries	
+		#add_uefi_entries	
 	done
 
 }
