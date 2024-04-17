@@ -220,13 +220,13 @@ main () {
 
 	# Get distro prefix
 	if [[ -f /etc/os-release ]]; then
-		distro_prefix="$(grep "^ID=" /etc/os-release)"
-		kernel_prefixes="${kernel_prefixes} ${distro_prefix/*=}-"
+		. /etc/os-release
+		kernel_prefixes="${kernel_prefixes} ${ID}-"
 	elif [[ -f /usr/lib/os-release ]]; then
-		distro_prefix="$(grep "^ID=" /usr/lib/os-release)"
-		kernel_prefixes="${kernel_prefixes} ${distro_prefix/*=}-"
+		. /usr/lib/os-release
+		kernel_prefixes="${kernel_prefixes} ${ID}-"
 	fi
-	
+
 	# Strip initrd=* from config file
 	for strip_config in $kernel_commands; do
 		
