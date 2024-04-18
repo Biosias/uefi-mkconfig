@@ -223,7 +223,7 @@ main () {
 		einfo "Using kernel commands from /proc/cmdline"
 	fi
 
-	# Get distro prefix
+	# Get distro prefix from os-release
 	if [[ -f /etc/os-release ]]; then
 		. /etc/os-release
 		kernel_prefixes="${kernel_prefixes} ${ID}-"
@@ -232,11 +232,18 @@ main () {
 		kernel_prefixes="${kernel_prefixes} ${ID}-"
 	fi
 
+	# Get distro prefix from entry-token
+	if [[ -f /etc/kernel/entry-token ]]; then
+		kernel_prefixes="${kernel_prefixes} $(head -n1 /etc/kernel/entry-token)-"
+	elif [[ -f /usr/lib/kernel/entry-token ]]; then
+		kernel_prefixes="${kernel_prefixes} $(head -n1 /usr/lib/kernel/entry-token)-"
+	fi
+
 	# Verify kernel commands
         for check_config in $kernel_commands; do
 
                 # Strip initrd=* from config file
-                [[ "$check_config" != *"initrd="* ]] && strip_kernel_commands="$strip_kernel_commands $strip_config"
+                [[ "$check_config" != *"initrd="* ]] && strip_kernel_commands="$strip_kernel_commands $check_config"
                 # Check if some mandatory fields are present in the kernel commands
                 [[ "$check_config" == "root="* ]] && valid_kernel_commands=1
 
