@@ -268,10 +268,10 @@ main () {
 		done
 		
 		# Remove invalid entries
-		#remove_uefi_entries
+		remove_uefi_entries
 
 		# Add missiong efi entries for efi files that exist
-		#add_uefi_entries	
+		add_uefi_entries	
 	done
 
 }
