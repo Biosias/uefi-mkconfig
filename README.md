@@ -20,9 +20,8 @@ Recommended way to do this would be to add them all to `/etc/fstab` to be mounte
 
 ## Initramfs auto-discovery
 
-Fo initramfs to be discovered, it needs to reside in the same directory as its corresponding kernel.
-
-Please don't put `initrd=` into kernel commands manually. It will be discarded!
+For initramfs to be discovered, it needs to reside in the same directory as its corresponding kernel.
+Please don't insert `initrd=` into kernel commands manually. It will be discarded!
 
 ## SHIM compatibility
 
@@ -33,7 +32,7 @@ For now, if SHIM booting is needed, kernel and shim have to be present within di
 
 ## Custom/Managed entries
 
-Script will create and delete ONLY EFI entries with hex ID larger or equal to 0100 and less or equal to 0200.
+Script will create and delete **ONLY** EFI entries with hex ID larger or equal to 0100 and less or equal to 0200.
 If custom entry is needed, assign it hex ID below or above this range.
 
 ## Kernel Commands
@@ -48,12 +47,28 @@ For configuring kernel commands following config file options can be used:
 
 if none of these exist, commands will be taken from `/proc/cmdline`.
 
-Script WILL regenerate entries after kernel commands config have been modified.
+Format of the configuration file should be **ONLY** space separated list of kernel commads.
+
+Example:
+
+```
+machine1 ~ # cat /etc/default/uefi-mkconfig
+crypt_root=UUID=dcb0cc6f-ddac-ge38-b92c-e59edc55dv61 root=/dev/mapper/gentoo rootfstype=ext4 resume=/dev/mapper/swap dolvm quiet
+```
+
+When kernel commands configuration file is modified, uefi-mkconfig **will regenerate all its managed entries**.
 
 ## Entry labeling
 
-Each entry will be labeled with kernel version + to make it easier to differentiate entires 
+Each entry will be labeled with kernel version + to make it easier to differentiate entries 
 on different partitions from each other, PARTLABEL will be appended to the EFI entry label.
+
+Example:
+
+```
+Boot0104* 6.8.5-gentoo-r1-nvme0n1p1
+```
+
 
 ## Credits
 Special thanks to:
