@@ -210,20 +210,20 @@ main () {
 		fi
 	elif [[ -f /etc/default/uefi-mkconfig ]]; then
 		kernel_commands="$(tr -s "${IFS}" ' ' </etc/default/uefi-mkconfig)"
-		einfo "Using kernel commands from /etc/default/uefi-mkconfig"
+		einfo "Using kernel commands from \"/etc/default/uefi-mkconfig\""
 	elif [[ -f /etc/kernel/uefi-mkconfig ]]; then
 		kernel_commands="$(tr -s "${IFS}" ' ' </etc/kernel/uefi-mkconfig)"
-		einfo "Using kernel commands from /etc/kernel/uefi-mkconfig"
+		einfo "Using kernel commands from \"/etc/kernel/uefi-mkconfig\""
 	elif [[ -f /usr/lib/kernel/uefi-mkconfig ]]; then
 		kernel_commands="$(tr -s "${IFS}" ' ' </usr/lib/kernel/uefi-mkconfig)"
-		einfo "Using kernel commands from /usr/lib/kernel/uefi-mkconfig"
+		einfo "Using kernel commands from \"/usr/lib/kernel/uefi-mkconfig\""
 	else
 		kernel_commands="$(tr -s "${IFS}" '\n' </proc/cmdline | grep -ve '^BOOT_IMAGE=' -e '^initrd=' | tr '\n' ' ')"
 		proc_kernel_commands=1
-		einfo "Using kernel commands from /proc/cmdline"
+		ewarn "Warning, using kernel commands from \"/proc/cmdline\"!"
 	fi
 
-	# Get distro prefix from os-release
+	# Get kernel prefix from os-release
 	if [[ -f /etc/os-release ]]; then
 		. /etc/os-release
 		kernel_prefixes="${kernel_prefixes} ${ID}-"
@@ -232,7 +232,7 @@ main () {
 		kernel_prefixes="${kernel_prefixes} ${ID}-"
 	fi
 
-	# Get distro prefix from entry-token
+	# Get kernel prefix from entry-token
 	if [[ -f /etc/kernel/entry-token ]]; then
 		kernel_prefixes="${kernel_prefixes} $(head -n1 /etc/kernel/entry-token)-"
 	elif [[ -f /usr/lib/kernel/entry-token ]]; then
@@ -244,14 +244,13 @@ main () {
 
                 # Strip initrd=* from config file
                 [[ "$check_config" != *"initrd="* ]] && strip_kernel_commands="$strip_kernel_commands $check_config"
-                # Check if some mandatory fields are present in the kernel commands
+                # Verify if "root=" is present
                 [[ "$check_config" == "root="* ]] && valid_kernel_commands=1
 
         done
 	kernel_commands="$strip_kernel_commands"
 
-	# Throw warning if kernel commands have been determined as invalid
-        [[ -z $valid_kernel_commands ]] && ewarn "Warning, used kernel commands appear to be invalid!"
+        [[ -z $valid_kernel_commands ]] && ewarn "Warning, kernel command \"root=\" is missing from loaded configuration!"
 
 	for partition in $mounted_efi_partitions; do
 		
