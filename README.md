@@ -69,6 +69,23 @@ Example:
 Boot0104* 6.8.5-gentoo-r1-nvme0n1p1
 ```
 
+## Ignoring chosen kernels
+
+If needed, some kernels can be set to be ignored by the uefi-mkconfig by creating an empty file in the same directory as the kernel with the same name
+as efi file of the kernel but just with `.ignore` suffix.
+
+Example:
+
+```
+machine1 /boot/EFI/Gentoo # ls -la
+total 184920
+drwxr-xr-x 2 root root     4096 May 10 10:47 .
+drwxr-xr-x 3 root root     4096 Apr  4 10:15 ..
+-rwxr-xr-x 1 root root 15703024 Apr 21 16:04 vmlinuz-6.6.21-gentoo-dist.efi
+-rwxr-xr-x 1 root root        0 May 10 10:47 vmlinuz-6.6.21-gentoo-dist.efi.ignore
+```
+
+WARNING: If uefi entry was already created by uefi-mkconfig for this kernel before `.ignore` file creation. **Its uefi entry will be deleted!**
 
 ## Credits
 Special thanks to:
