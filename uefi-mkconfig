@@ -173,7 +173,7 @@ remove_uefi_entries () {
 			entry_kernel_commands=${entry_kernel_commands// initrd*}
 	
 			# Check if efi file exists and if this entry in in managed range	
-			if [ ! -f "$partition_mount${entry_efi_path//\\/\/}" ]; then
+			if [ ! -f "$partition_mount${entry_efi_path//\\/\/}" ] || [ -f "$partition_mount${entry_efi_path//\\/\/}.ignore" ]; then
 				
 				# Delete entry
 				ewarn "Deleting UEFI entry \"$uefi_entry_hex\"! Its EFI file \"$partition_mount${entry_efi_path//\\/\/}\" wasn't found."
