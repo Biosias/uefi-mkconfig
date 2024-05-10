@@ -44,6 +44,12 @@ check_if_uefi_entry_exists () {
 add_uefi_entries () (
 	for efi_file in $partition_efis; do
 		
+		# Skip this kernel if ignore file is found
+		if [[ -f "$efi_file.ignore" ]]; then
+			ewarn "Ignoring \"$efi_file\" from partition \"$partition\"."
+			continue
+		fi
+
 		# Prepare path which will be inserted into efibootmgr
 		local efi_file_path
 		efi_file_path="${efi_file//$partition_mount}"
