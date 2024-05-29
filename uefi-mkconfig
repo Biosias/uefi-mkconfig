@@ -43,7 +43,6 @@ check_if_uefi_entry_exists () {
 
 add_uefi_entries () (
 	for efi_file in $partition_efis; do
-		
 		# Skip this kernel if ignore file is found
 		if [[ -f "$efi_file.ignore" ]]; then
 			ewarn "Ignoring \"$efi_file\" from partition \"$partition\"."
@@ -112,6 +111,16 @@ add_uefi_entries () (
 			else
 				adding_kernel_commands="${kernel_commands}"
 				ewarn "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."
+			fi
+			
+			# Check if microcode image exists
+			## microcode image can be ignored the same way as kernel image via .ignore suffix
+			local microcode_path
+			microcode_path="${efi_file_path/${efi_file_path##*/}}"
+			if [[ -f "${partition_mount}${microcode_path}amd-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}amd-uc.img.ignore" ]]; then
+				adding_kernel_commands="${adding_kernel_commands} initrd=${microcode_path//\//\\}amd-uc.img"
+			elif [[ -f "${partition_mount}${microcode_path}intel-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}intel-uc.img.ignore" ]]; then
+				adding_kernel_commands="${adding_kernel_commands} initrd=${microcode_path//\//\\}intel-uc.img"
 			fi
 
 			# Check if corresponding initramfs exists
