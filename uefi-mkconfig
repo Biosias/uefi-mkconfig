@@ -119,7 +119,8 @@ add_uefi_entries () (
 			microcode_path="${efi_file_path/${efi_file_path##*/}}"
 			if [[ -f "${partition_mount}${microcode_path}amd-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}amd-uc.img.ignore" ]]; then
 				adding_kernel_commands="${adding_kernel_commands} initrd=${microcode_path//\//\\}amd-uc.img"
-			elif [[ -f "${partition_mount}${microcode_path}intel-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}intel-uc.img.ignore" ]]; then
+			fi
+			if [[ -f "${partition_mount}${microcode_path}intel-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}intel-uc.img.ignore" ]]; then
 				adding_kernel_commands="${adding_kernel_commands} initrd=${microcode_path//\//\\}intel-uc.img"
 			fi
 
