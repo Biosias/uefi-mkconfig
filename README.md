@@ -1,14 +1,6 @@
 # uefi-mkconfig
 grub-mkconfig inspired script for automatically managing uefi entries for booting linux kernel directly without bootloader.
 
-## Support
-
-1. Adding UEFI entries for EFI-stub kernels
-2. Adding UEFI entries for UKI kernels
-3. Adding UEFI entries for UKI kernel via SHIM
-4. Initramfs auto-discovery
-5. Kernel auto-discovery
-
 ## Kernel auto-discovery
 
 Script will detect all mounted EFI partitions, scan through them and ADD/DELETE entries depending on what was and was not found.
@@ -22,6 +14,21 @@ Recommended way to do this would be to add them all to `/etc/fstab` to be mounte
 
 For initramfs to be discovered, it needs to reside in the same directory as its corresponding kernel.
 Please don't insert `initrd=` into kernel commands manually. It will be discarded!
+
+## Microcode loading
+
+Uefi-mkconfig can autodiscover and add microcode image to the uefi entry.
+For this to happen the microcode image needs to be present in the same directory as kernel images.
+If needed, microcode image can be ignored by creating empty file named the same way with the suffix .ignore 
+
+```
+user@machine1:~:$ ls -l /boot/EFI/Gentoo
+total 0
+-rwxr-xr-x 1 root root 0 May 29 16:26 amd-uc.img
+-rwxr-xr-x 1 root root 0 May 29 16:26 amd-uc.img.ignore
+-rwxr-xr-x 1 root root 0 May 29 16:26 initramfs-6.8.9-gentoo.img
+-rwxr-xr-x 1 root root 0 May 29 16:28 vmlinuz-6.8.9-gentoo.efi
+```
 
 ## SHIM compatibility
 
