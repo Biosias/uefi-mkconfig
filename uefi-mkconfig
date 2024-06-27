@@ -277,12 +277,16 @@ main () {
 		# Head at the end deals with cases where this partition is mounted in multiple places
 		partition_mount=$(lsblk /dev/"$partition" -lno MOUNTPOINTS | head -n 1)
 
-		# Find all .efi files on this partition
+		# Find all .efi files on this partition and split them to old and new
 		for prefix in $kernel_prefixes; do
-			find_results="$(find "$partition_mount" -name "$prefix*.efi" -printf "%f\n")"
-        		[[ -n "$find_results" ]] && kernel_images+="$find_results "
+			find_results_new="$(find "$partition_mount" -name "$prefix*.efi" ! -name "$prefix*-old.efi" -printf "%f\n")"
+			find_results_old="$(find "$partition_mount" -name "$prefix*-old.efi" -printf "%f\n")"
+			[[ -n "$find_results_new" ]] && kernel_images_new+="$find_results_new "
+			[[ -n "$find_results_old" ]] && kernel_images_old+="$find_results_old "
 		done
-		kernel_images="$(sort -uV <<< "$kernel_images")"
+
+		# Sort kernel images
+		kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")"
 
 		# Add path back to the kernel image
 		for kernel_image in $kernel_images; do
