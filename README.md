@@ -1,14 +1,16 @@
 # uefi-mkconfig
-grub-mkconfig inspired script for automatically managing uefi entries for booting linux kernel directly without bootloader.
+grub-mkconfig inspired script for automatically managing uefi entries for booting linux kernel directly without a bootloader.
 
 ## Kernel auto-discovery
 
-Script will detect all mounted EFI partitions, scan through them and ADD/DELETE entries depending on what was and was not found.
+Uefi-mkconfig will detect all mounted EFI partitions, scan through them and ADD/DELETE entries depending on what was and was not found.
 
 If you have multiple EFI partitions, please make sure all of them are mounted. If they are not, you **WILL LOSE** all auto-generated entries
 for EFI files on said unmounted partition.
 
-Recommended way to do this would be to add them all to `/etc/fstab` to be mounted on boot. 
+Recommended way to do this would be to add them all to `/etc/fstab` to be mounted on boot.
+
+WARNING: Make sure when creating said EFI partition, its PARTTYPE is set to c12a7328-f81f-11d2-ba4b-00a0c93ec93b or in other words, it needs to have PARTTYPENAME=EFI System. You can verify this by running `lsblk -o +PARTTYPE,PARTTYPENAME`
 
 ## Initramfs auto-discovery
 
@@ -63,7 +65,7 @@ machine1 ~ # cat /etc/default/uefi-mkconfig
 crypt_root=UUID=dcb0cc6f-ddac-ge38-b92c-e59edc55dv61 root=/dev/mapper/gentoo rootfstype=ext4 resume=/dev/mapper/swap dolvm quiet
 ```
 
-When kernel commands configuration file is modified, uefi-mkconfig **will regenerate all its managed entries**.
+If configuration file containing kernel commands has been modified, uefi-mkconfig **will regenerate all its managed entries**.
 
 ## Entry labeling
 
@@ -76,10 +78,10 @@ Example:
 Boot0104* 6.8.5-gentoo-r1-nvme0n1p1
 ```
 
-## Ignoring chosen kernels
+## Ignoring certain kernel version/s
 
-If needed, some kernels can be set to be ignored by the uefi-mkconfig by creating an empty file in the same directory as the kernel with the same name
-as efi file of the kernel but just with `.ignore` suffix.
+If needed, some kernel images can be ignored by creating an empty file in the same directory as the kernel with the same name
+as efi file of the kernel image with `.ignore` suffix.
 
 Example:
 
@@ -93,6 +95,11 @@ drwxr-xr-x 3 root root     4096 Apr  4 10:15 ..
 ```
 
 WARNING: If uefi entry was already created by uefi-mkconfig for this kernel before `.ignore` file creation. **Its uefi entry will be deleted!**
+
+## Troubleshooting
+
+Sometimes when running uefi-mkconfig from within a chroot, lsblk can cause problems resulting in uefi-mkconfig to not work. (For example when installing Gentoo linux) 
+If this happens, exit the chroot, copy configuration from rootfs of the system being installed to the fs of the liveCD and run uefi-mkconfig again outside of the chroot. Be sure to have the EFI partition mounted.
 
 ## Credits
 Special thanks to:
