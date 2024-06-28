@@ -21,6 +21,7 @@ Please don't insert `initrd=` into kernel commands manually. It will be discarde
 
 Uefi-mkconfig can autodiscover and add microcode image to the uefi entry.
 For this to happen the microcode image needs to be present in the same directory as kernel images.
+
 If needed, microcode image can be ignored by creating empty file named the same way with the suffix .ignore 
 
 ```
@@ -42,6 +43,7 @@ For now, if SHIM booting is needed, kernel and shim have to be present within di
 ## Custom/Managed entries
 
 Script will create and delete **ONLY** EFI entries with hex ID larger or equal to 0100 and less or equal to 0200.
+ID 0200 is dedicated for automatic backup entry creation. This entry will not be deleted automatically!
 If custom entry is needed, assign it hex ID below or above this range.
 
 ## Kernel Commands
@@ -64,8 +66,6 @@ Example:
 machine1 ~ # cat /etc/default/uefi-mkconfig
 crypt_root=UUID=dcb0cc6f-ddac-ge38-b92c-e59edc55dv61 root=/dev/mapper/gentoo rootfstype=ext4 resume=/dev/mapper/swap dolvm quiet
 ```
-
-If configuration file containing kernel commands has been modified, uefi-mkconfig **will regenerate all its managed entries**.
 
 ## Entry labeling
 
@@ -95,6 +95,32 @@ drwxr-xr-x 3 root root     4096 Apr  4 10:15 ..
 ```
 
 WARNING: If uefi entry was already created by uefi-mkconfig for this kernel before `.ignore` file creation. **Its uefi entry will be deleted!**
+
+## Backup UEFI entry creation
+
+uefi-mkconfig can automatically create backup uefi entry at position 0200.
+This entry **will not** be automatically deleted and **will not** be added to the bootorder.
+Besides these two special rules, the entry creation itself is identical to the normal processs.
+
+**Only one kernel image** can be designated as backup. If multiple one are marked as backup, kernel of the most recent version is chosen.
+
+To designate kernel image as backup, create an empty file in the same directory as the kernel image itsel, name it the same way but add suffix ".uefibackup"
+
+Example:
+```
+user@machine1:~:$ ls -la /boot/EFI/Gentoo/
+total 236336
+drwxr-xr-x 2 root root     8192 Jun 28 10:56 .
+drwxr-xr-x 3 root root     4096 Apr  4 10:15 ..
+-rwxr-xr-x 1 root root   274097 Jun 17 10:17 config-6.9.5-gentoo-dist
+-rwxr-xr-x 1 root root   274097 Jun 24 13:57 config-6.9.6-gentoo-dist
+-rwxr-xr-x 1 root root 17661133 Jun 17 10:17 initramfs-6.9.5-gentoo-dist.img
+-rwxr-xr-x 1 root root 17662709 Jun 24 13:57 initramfs-6.9.6-gentoo-dist.img
+-rwxr-xr-x 1 root root 17144816 Jun 17 10:17 vmlinuz-6.9.5-gentoo-dist.efi
+-rwxr-xr-x 1 root root 17144816 Jun 24 13:57 vmlinuz-6.9.6-gentoo-dist.efi
+-rwxr-xr-x 1 root root        0 Jun 28 10:56 vmlinuz-6.9.6-gentoo-dist.efi.uefibackup
+```
+
 
 ## Troubleshooting
 
