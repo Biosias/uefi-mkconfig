@@ -98,7 +98,7 @@ WARNING: If uefi entry was already created by uefi-mkconfig for this kernel befo
 
 ## Backup UEFI entry creation
 
-uefi-mkconfig can automatically create backup uefi entry at position 0200.
+uefi-mkconfig can automatically create backup uefi entry at position 0100.
 This entry **will not** be automatically deleted and **will not** be added to the bootorder.
 Besides these two special rules, the entry creation itself is identical to the normal processs.
 
@@ -120,6 +120,8 @@ drwxr-xr-x 3 root root     4096 Apr  4 10:15 ..
 -rwxr-xr-x 1 root root 17144816 Jun 24 13:57 vmlinuz-6.9.6-gentoo-dist.efi
 -rwxr-xr-x 1 root root        0 Jun 28 10:56 vmlinuz-6.9.6-gentoo-dist.efi.uefibackup
 ```
+
+This backup entry will be marked by UMCB string in the label entry
 
 
 ## Troubleshooting
