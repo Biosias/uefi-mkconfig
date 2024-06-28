@@ -57,9 +57,15 @@ add_uefi_entries () (
 		local entry_label
 		partition_label="$(lsblk "/dev/$partition" -lno PARTLABEL)"
 		if [[ -n ${partition_label} ]]; then
-			entry_label="$kernel_version-$partition_label"
+			entry_label="$kernel_version on $partition_label"
 		else
 			entry_label="$kernel_version"
+		fi
+
+		if [[ -n $backup_efi ]]; then
+			entry_label="UMCB $entry_label"
+		else
+			entry_label="UMC $entry_label"
 		fi
 			
 		# Create path to initramfs
@@ -79,7 +85,7 @@ add_uefi_entries () (
 			efi_file_path="${efi_file_path/${efi_file_path##*/}/}${shim/*\//}"
 		elif [[ -n $backup_efi ]]; then
 			adding_kernel_commands="${kernel_commands}"
-			einfo "Creating BACKUP UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."	
+			einfo "Creating BACKUP UEFI entry \"0100\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."	
 		else
 			adding_kernel_commands="${kernel_commands}"
 			einfo "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."
@@ -104,12 +110,12 @@ add_uefi_entries () (
 		fi
 
 		# Add new entry
-		if [[ ! -n $backup_efi ]]; then
-			efibootmgr --create -b "$bootnum" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
-			-u "$adding_kernel_commands" &>/dev/null || die "Failed to add UEFI entry for \"$efi_file_path\""
+		if [[ -z $backup_efi ]]; then
+			efibootmgr -q --create -b "$bootnum" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
+			-u "$adding_kernel_commands" || die "Failed to add UEFI entry for \"$efi_file_path\""
 		else
-			efibootmgr --create-only -b "0200" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
-			-u "$adding_kernel_commands" &>/dev/null || die "Failed to add UEFI entry for \"$efi_file_path\""
+			efibootmgr -q --create-only -b "0100" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
+			-u "$adding_kernel_commands" || die "Failed to add UEFI entry for \"$efi_file_path\""
 		fi
 	done
 )
@@ -118,7 +124,7 @@ backup_entry () {
 	backup_efi=
 
 	# Check if backup entry exist at ID 200
-	if [[ "" == "$(efibootmgr -u | grep "Boot0200")" ]]; then
+	if [[ "" == "$(efibootmgr -u | grep "Boot0100")" ]]; then
 		for efi_file in $partition_efis; do	
 			# Check if file marking backup kernel image exists
 			if [[ -f "${efi_file}.uefibackup" ]]; then 
@@ -130,11 +136,12 @@ backup_entry () {
 		if [[ -n $backup_efi ]]; then 
 			partition_efis="$backup_efi"
 			add_uefi_entries
+			backup_efi=
 		else
 			ewarn "No backup kernel image designated!"
 		fi
 	else
-		einfo "Backup UEFI entry found at 0200"
+		einfo "Backup UEFI entry found at 0100"
 	fi
 }
 
@@ -201,6 +208,15 @@ main () {
 	kernel_commands="$strip_kernel_commands"
 
         [[ -z $valid_kernel_commands ]] && ewarn "Warning, kernel command \"root=\" is missing from loaded configuration!"
+		
+	# Clear old entries for regeneration
+	## 256..512 is because entry IDs are actually in hexadecimal format
+	for entry_number in {256..512}; do
+		# Wipe only boot entries with UMC stamp
+		if [[ "$(efibootmgr -u | grep Boot$(printf %04X $entry_number))" == *"UMC "* ]]; then
+			efibootmgr -q -B -b $(printf %04X $entry_number)
+		fi
+	done
 
 	for partition in $mounted_efi_partitions; do
 		
@@ -224,20 +240,17 @@ main () {
 
 		# Add path back to the kernel image
 		for kernel_image in $kernel_images; do
-        		partition_efis+="$(find "$partition_mount" -name "$kernel_image") "
+        		partition_efis_main+="$(find "$partition_mount" -name "$kernel_image") "
 		done
 		
-		# Clear old entries for regeneration
-		for entry_number in {100..199}; do
-			efibootmgr -B -b $entry_number &> /dev/null
-		done
-
-		# Add missiong efi entries for efi files that exist
-		add_uefi_entries	
-
 		# Create backup entry if it does not exist
+		partition_efis=$partition_efis_main
 		backup_entry
 		
+		# Add missiong efi entries for efi files that exist
+		partition_efis=$partition_efis_main
+		add_uefi_entries	
+
 	done
 
 	einfo "Done"
