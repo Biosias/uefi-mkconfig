@@ -75,11 +75,14 @@ add_uefi_entries () (
 		if [[ -n "$shim" ]]; then
 			shim="${shim%%.efi*}.efi"
 			adding_kernel_commands="${efi_file_path//\//\\} ${kernel_commands}"
-			ewarn "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" using shim \"$shim\" found on \"$partition\"..."
+			einfo "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" using shim \"$shim\" found on \"$partition\"..."
 			efi_file_path="${efi_file_path/${efi_file_path##*/}/}${shim/*\//}"
+		elif [[ -n $backup_efi ]]; then
+			adding_kernel_commands="${kernel_commands}"
+			einfo "Creating BACKUP UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."	
 		else
 			adding_kernel_commands="${kernel_commands}"
-			ewarn "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."
+			einfo "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."
 		fi
 			
 		# Check if microcode image exists
@@ -101,10 +104,39 @@ add_uefi_entries () (
 		fi
 
 		# Add new entry
-		efibootmgr --create -b "$bootnum" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
-		-u "$adding_kernel_commands" &>/dev/null || die "Failed to add UEFI entry for \"$efi_file_path\""
+		if [[ ! -n $backup_efi ]]; then
+			efibootmgr --create -b "$bootnum" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
+			-u "$adding_kernel_commands" &>/dev/null || die "Failed to add UEFI entry for \"$efi_file_path\""
+		else
+			efibootmgr --create-only -b "0200" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
+			-u "$adding_kernel_commands" &>/dev/null || die "Failed to add UEFI entry for \"$efi_file_path\""
+		fi
 	done
 )
+
+backup_entry () {
+	backup_efi=
+
+	# Check if backup entry exist at ID 200
+	if [[ "" == "$(efibootmgr -u | grep "Boot0200")" ]]; then
+		for efi_file in $partition_efis; do	
+			# Check if file marking backup kernel image exists
+			if [[ -f "${efi_file}.uefibackup" ]]; then 
+				backup_efi="$efi_file"
+			fi
+		done
+
+		# Create backup entry from the most recent kernel image with backup file mark
+		if [[ -n $backup_efi ]]; then 
+			partition_efis="$backup_efi"
+			add_uefi_entries
+		else
+			ewarn "No backup kernel image designated!"
+		fi
+	else
+		einfo "Backup UEFI entry found at 0200"
+	fi
+}
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
@@ -196,12 +228,16 @@ main () {
 		done
 		
 		# Clear old entries for regeneration
-		for entry_number in {100..200}; do
+		for entry_number in {100..199}; do
 			efibootmgr -B -b $entry_number &> /dev/null
 		done
 
 		# Add missiong efi entries for efi files that exist
 		add_uefi_entries	
+
+		# Create backup entry if it does not exist
+		backup_entry
+		
 	done
 
 	einfo "Done"
