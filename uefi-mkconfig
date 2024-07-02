@@ -219,7 +219,10 @@ main () {
 	done
 
 	for partition in $mounted_efi_partitions; do
-		
+
+                kernel_images=()
+                partition_efis=()
+
 		# Find partition uuid
 		partition_partuuid=$(lsblk "/dev/$partition" -lno PARTUUID)
 
