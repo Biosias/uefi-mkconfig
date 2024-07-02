@@ -30,14 +30,14 @@ add_uefi_entries () (
 		bootnum=256 # 256 is decimal value of 0100
 		while [[ "$(efibootmgr -u)" == *"Boot$(printf %04X $bootnum)"* ]]; do
 			bootnum=$((bootnum + 1))
-			
+
 			# Die if script exceeds managed range 0100-0200
 			if [[ $bootnum -gt 512 ]]; then
 				die "All IDs, within managed range by uefi-mkconfig, are full!"
 			fi
 
 		done
-		
+
 		# Convert chosen entry ID into hex
 		bootnum="$(printf %04X $bootnum)"
 
@@ -67,7 +67,7 @@ add_uefi_entries () (
 		else
 			entry_label="UMC $entry_label"
 		fi
-			
+
 		# Create path to initramfs
 		local initramfs_image
 		initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs-$kernel_version.img"
@@ -85,12 +85,12 @@ add_uefi_entries () (
 			efi_file_path="${efi_file_path/${efi_file_path##*/}/}${shim/*\//}"
 		elif [[ -n $backup_efi ]]; then
 			adding_kernel_commands="${kernel_commands}"
-			einfo "Creating BACKUP UEFI entry \"0100\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."	
+			einfo "Creating BACKUP UEFI entry \"0100\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."
 		else
 			adding_kernel_commands="${kernel_commands}"
 			einfo "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\"..."
 		fi
-			
+
 		# Check if microcode image exists
 		## microcode image can be ignored the same way as kernel image via .ignore suffix
 		local microcode_path
@@ -117,6 +117,7 @@ add_uefi_entries () (
 			efibootmgr -q --create-only -b "0100" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
 			-u "$adding_kernel_commands" || die "Failed to add UEFI entry for \"$efi_file_path\""
 		fi
+
 	done
 )
 
@@ -125,15 +126,15 @@ backup_entry () {
 
 	# Check if backup entry exist at ID 200
 	if [[ "" == "$(efibootmgr -u | grep "Boot0100")" ]]; then
-		for efi_file in $partition_efis; do	
+		for efi_file in $partition_efis; do
 			# Check if file marking backup kernel image exists
-			if [[ -f "${efi_file}.uefibackup" ]]; then 
+			if [[ -f "${efi_file}.uefibackup" ]]; then
 				backup_efi="$efi_file"
 			fi
 		done
 
 		# Create backup entry from the most recent kernel image with backup file mark
-		if [[ -n $backup_efi ]]; then 
+		if [[ -n $backup_efi ]]; then
 			partition_efis="$backup_efi"
 			add_uefi_entries
 			backup_efi=
@@ -147,18 +148,20 @@ backup_entry () {
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1 | sort -r)
+	#as some BIOSes ignore boot order, have to force the ascending one
+	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1 | sort )
 	proc_kernel_commands=
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
-	
+        created_IDs=()
+
 	einfo "Running uefi-mkconfig..."
 
 	[[ ${EUID} -eq 0 ]] || die "Please run uefi-mkconfig as root!"
 
 	[[ -n ${mounted_efi_partitions} ]] || die "No mounted efi partitions!"
 
-	[[ -n "$(command -v efibootmgr)" ]] || die "efibootmgr dependency not found!" 
+	[[ -n "$(command -v efibootmgr)" ]] || die "efibootmgr dependency not found!"
 
 	# Load kernel commands from config files
 	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
@@ -208,20 +211,18 @@ main () {
 	kernel_commands="$strip_kernel_commands"
 
         [[ -z $valid_kernel_commands ]] && ewarn "Warning, kernel command \"root=\" is missing from loaded configuration!"
-		
+
 	# Clear old entries for regeneration
-	## 256..512 is because entry IDs are actually in hexadecimal format
-	for entry_number in {256..512}; do
-		# Wipe only boot entries with UMC stamp
-		if [[ "$(efibootmgr -u | grep Boot$(printf %04X $entry_number))" == *"UMC "* ]]; then
-			efibootmgr -q -B -b $(printf %04X $entry_number)
-		fi
+	## 256..512 (so 0100-0200 because entry IDs are actually in hexadecimal format)
+	for entry_number in $(efibootmgr -u|grep -Po '[Bb]oot0(1[0-9a-fA-F]{2}|200)\W{1,2}UMC'|grep -Po '[0-9a-fA-F]{4}'); do
+	        efibootmgr -q -B -b $entry_number
 	done
 
 	for partition in $mounted_efi_partitions; do
 
-                kernel_images=()
-                partition_efis=()
+                kernel_images_old=()
+                kernel_images_new=()
+                partition_efis_main=()
 
 		# Find partition uuid
 		partition_partuuid=$(lsblk "/dev/$partition" -lno PARTUUID)
@@ -239,24 +240,31 @@ main () {
 		done
 
 		# Sort kernel images
-		kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")"
+		kernel_images="$(sort -urV <<< "$kernel_images_new") $(sort -urV <<< "$kernel_images_old")"
 
 		# Add path back to the kernel image
 		for kernel_image in $kernel_images; do
         		partition_efis_main+="$(find "$partition_mount" -name "$kernel_image") "
 		done
-		
+
 		# Create backup entry if it does not exist
 		partition_efis=$partition_efis_main
 		backup_entry
-		
+
 		# Add missiong efi entries for efi files that exist
 		partition_efis=$partition_efis_main
-		add_uefi_entries	
+		add_uefi_entries
 
 	done
 
-	einfo "Done"
+	#sorting boot item list into ascending boot order
+        einfo "Setting boot order..."
+	umc_items=$(efibootmgr -u|grep -Po '[Bb]oot0(1[0-9a-fA-F]{2}|200)\W{1,2}UMC'|grep -Po '[0-9a-fA-F]{4}'|sort |tr '\n' ','|sed 's/,$//g')
+	non_umc_items=$(efibootmgr -u|grep -Pv '[Bb]oot0(1[0-9a-fA-F]{2}|200)\W{1,2}UMC'|grep -Po '[Bb]oot[0-9a-fA-F]{4}'|grep -Po '[0-9a-fA-F]{4}'|sort |tr '\n' ','|sed 's/,$//g')
+	itemlist="$umc_items,$non_umc_items"
+	efibootmgr -q -o "$itemlist"
+
+        einfo "Done"
 
 }
 
