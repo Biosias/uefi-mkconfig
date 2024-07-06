@@ -226,6 +226,11 @@ main () {
 		# Find where disk is mounted
 		# Head at the end deals with cases where this partition is mounted in multiple places
 		partition_mount=$(lsblk /dev/"$partition" -lno MOUNTPOINTS | head -n 1)
+		
+		# Reset variables
+		local kernel_images_new=
+		local kernel_images_old=
+		local partition_efis_main=
 
 		# Find all .efi files on this partition and split them to old and new
 		for prefix in $kernel_prefixes; do
