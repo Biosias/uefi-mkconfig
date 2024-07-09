@@ -103,11 +103,19 @@ main () {
 	
 	einfo "Running uefi-mkconfig..."
 
-	[[ ${EUID} -eq 0 ]] || die "Please run uefi-mkconfig as root!"
+	if [[ ${EUID} -ne 0 ]]; then
+		die "Please run uefi-mkconfig as root!"
 
-	[[ -n ${mounted_efi_partitions} ]] || die "No mounted efi partitions!"
+	elif [[ -z $(lsblk -o PARTTYPE | grep -v -e "PARTTYPE" -e "^$") ]]; then 
+		die "lsblk can't see PARTTYPE! Please refer to Troubleshooting section in README or open an issue"
 
-	[[ -n "$(command -v efibootmgr)" ]] || die "efibootmgr dependency not found!" 
+	elif [[ -z ${mounted_efi_partitions} ]]; then
+		die "No mounted efi partitions!"
+
+	elif [[ -z "$(command -v efibootmgr)" ]]; then
+		die "efibootmgr dependency not found!"
+
+	fi
 
 	# Load kernel commands from config files
 	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
