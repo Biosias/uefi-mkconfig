@@ -85,19 +85,18 @@ add_uefi_entry () (
 
 wipe_entries () {
 	local initial_uefi_umc_state
-	initial_uefi_umc_state="$(printf "$initial_uefi_state" | grep " UMC ")"
+	initial_uefi_umc_state="$(printf %s "$initial_uefi_state" | grep " UMC ")"
 	
 	local IFS=$'\n'
 	
 	for delete_entry in $initial_uefi_umc_state; do
-		efibootmgr -q -B -b ${delete_entry:4:4}
+		efibootmgr -q -B -b "${delete_entry:4:4}"
 	done
 }
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 	mounted_efi_partitions=$(lsblk -lo NAME,MOUNTPOINTS,PARTTYPE | grep  "$efi_parttype" | grep "/" | cut -d' ' -f1 | sort -r)
-	proc_kernel_commands=
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	
@@ -133,7 +132,6 @@ main () {
 		einfo "Using kernel commands from \"/usr/lib/kernel/uefi-mkconfig\""
 	else
 		kernel_commands="$(tr -s "${IFS}" '\n' </proc/cmdline | grep -ve '^BOOT_IMAGE=' -e '^initrd=' | tr '\n' ' ')"
-		proc_kernel_commands=1
 		ewarn "Warning, using kernel commands from \"/proc/cmdline\"!"
 	fi
 
@@ -173,9 +171,6 @@ main () {
 	wipe_entries
 	
 	for partition in $mounted_efi_partitions; do
-		
-		# Find partition uuid
-		partition_partuuid=$(lsblk "/dev/$partition" -lno PARTUUID)
 
 		# Find where disk is mounted
 		# Head at the end deals with cases where this partition is mounted in multiple places
@@ -189,7 +184,6 @@ main () {
 		# Reset variables
 		local kernel_images_new=
 		local kernel_images_old=
-		local partition_efis_main=
 
 		# Find all .efi files on this partition and split them to old and new
 		for prefix in $kernel_prefixes; do
@@ -206,6 +200,7 @@ main () {
 
 	# Add path back to the kernel image
 	for kernel_image in $kernel_images; do
+		# Variable partition_mounts in this case can't be inside of ""
         	partition_efis+="$(find $partition_mounts -name "$kernel_image") "
 	done
 	
@@ -267,11 +262,11 @@ main () {
 			bootnum=512 # 512 is decimal value of 0200
 		else
 			# If it already has value, convert it to decimal and subtract 1
-			bootnum="$(($(printf %d 0x$bootnum) - 1))"
+			bootnum="$(($(printf %d 0x"$bootnum") - 1))"
 		fi
 		
 		# Find first free hex address smaller than or equal to 0200 for new UEFI boot entry
-		while [[ "$(grep -v " UMC " <<< $initial_uefi_state)" == *"Boot$(printf %04X $bootnum)"* ]]; do
+		while [[ "$(grep -v " UMC " <<< "$initial_uefi_state")" == *"Boot$(printf %04X $bootnum)"* ]]; do
 			bootnum=$((bootnum - 1))
 			
 			# Die if script exceeds managed range 0200-0100
