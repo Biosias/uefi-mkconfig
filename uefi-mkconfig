@@ -197,12 +197,6 @@ main () {
 	done
 	
 	for efi_file in $partition_efis; do
-		# Skip this kernel version if ignore file is found
-		if [[ -f "$efi_file.ignore" ]]; then
-			ewarn "Ignoring \"$efi_file\" from partition \"$partition\"."
-			continue
-		fi
-
 		# Get partition mount
 		partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
 
@@ -211,6 +205,12 @@ main () {
 		partition=${partition// */}
 		partition=${partition//*\//}
 		
+		# Skip this kernel version if ignore file is found
+		if [[ -f "$efi_file.ignore" ]]; then
+			ewarn "Ignoring \"$efi_file\" on \"$partition\""
+			continue
+		fi
+
 		# Get partition label
 		partition_label="$(lsblk "/dev/$partition" -lno PARTLABEL)"
 		## In case PARTLABEL isn't set, use UUID
