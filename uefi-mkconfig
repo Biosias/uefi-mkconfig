@@ -115,7 +115,7 @@ main () {
 	elif [[ -z ${mounted_efi_partitions} ]]; then
 		die "No mounted efi partitions!"
 
-	elif [[ ! -x "$(which efibootmgr)" ]]; then
+	elif [[ ! -x "$(command -v efibootmgr)" ]]; then
 		die "efibootmgr dependency not found!"
 
 	fi
