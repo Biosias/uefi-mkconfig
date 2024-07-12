@@ -116,7 +116,7 @@ main () {
 		die "No mounted efi partitions!"
 
 	elif [[ ! -x "$(command -v efibootmgr)" ]]; then
-		die "efibootmgr dependency not found!"
+		die "Unable to access efibootmgr command!"
 
 	fi
 
@@ -173,24 +173,28 @@ main () {
 	wipe_entries
 	
 	partition_mounts="${mounted_efi_partitions// "$efi_parttype"/}"
-	
+
+	local kernel_images_new=
+	local kernel_images_old=
+
 	# Find all .efi files on this partition and split them to old and new
 	for prefix in $kernel_prefixes; do
 		find_results_new="$(find $partition_mounts -name "$prefix*.efi" ! -name "$prefix*-old.efi" -printf "%f\n")"
 		find_results_old="$(find $partition_mounts -name "$prefix*-old.efi" -printf "%f\n")"
-		[[ -n "$find_results_new" ]] && kernel_images_new+="$find_results_new "
-		[[ -n "$find_results_old" ]] && kernel_images_old+="$find_results_old "
+		[[ -n "$find_results_new" ]] && kernel_images_new+="$find_results_new"
+		[[ -n "$find_results_old" ]] && kernel_images_old+="$find_results_old"
 	done
-
+	
 	# Sort kernel images
-	kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")"
+	kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")" 
 
+	local partition_efis=
 	# Add path back to the kernel image
 	for kernel_image in $kernel_images; do
 		# Variable partition_mounts in this case can't be inside of ""
         	partition_efis+="$(find $partition_mounts -name "$kernel_image") "
 	done
-	
+
 	# Move backup entries to the beginning of the list
 	for efi_file in $partition_efis; do
 		[[ -f "${efi_file}.uefibackup" ]] && partition_efis="${efi_file}.uefibackup ${partition_efis}"
@@ -258,7 +262,7 @@ main () {
 		# Convert chosen entry ID into hex
 		bootnum="$(printf %04X $bootnum)"
 		
-		# Add efi entriy for efi file
+		# Add efi entry for efi file
 		add_uefi_entry
 
 	done
