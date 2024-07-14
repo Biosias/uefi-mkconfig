@@ -4,7 +4,7 @@ grub-mkconfig inspired script for automatically managing uefi entries.
 ## Goals
 The goal of this script is to utilise direct kernel booting feature of UEFI firmware to remove the need for using bootloaders and make the process as simple as possible at the same time.
 
-## ! Warning !
+## Warning!
 uefi-mkconfig uses UEFI Firmware to do things like setting boot order and creating boot entries.
 However implementations of UEFI Firmware were shown to not be very standardised and firmware of some HW vendors can exhibit quirky behaviour.
 
@@ -12,7 +12,7 @@ We try to mitigate these behaviours as they are discovered and reported to us.
 However because of low age of this project we can't guarantee that all quirks were mitigated.
 If you find some, please report it to us as soon as possible.
 
-**Because of this fact, we strongly recommend to testing your firmware if it works correctly before trusting this solution in the production environment!**
+**Because of this fact, we strongly recommend testing your firmware if it works correctly with uefi-mkconfig before using it in the production environment!**
 
 These quirks are more common the older the HW is.
 
