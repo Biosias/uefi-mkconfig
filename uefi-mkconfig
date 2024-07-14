@@ -150,9 +150,10 @@ main () {
 		kernel_commands="$(tr -s "${IFS}" ' ' </usr/lib/kernel/uefi-mkconfig)"
 		einfo "Using kernel commands from \"/usr/lib/kernel/uefi-mkconfig\""
 	else
-		kernel_commands="$(tr -s "${IFS}" '\n' </proc/cmdline | grep -ve '^BOOT_IMAGE=' -e '^initrd=' | tr '\n' ' ')"
-		ewarn "Warning, using kernel commands from \"/proc/cmdline\"!"
+		die "No uefi-mkconfig configuration file found!"
 	fi
+
+	[[ -z "$kernel_commands" ]] && ewarn "Warning! Loaded empty uefi-mkconfig configuration file!"
 
 	# Get kernel prefix from os-release
 	if [[ -f /etc/os-release ]]; then
@@ -179,7 +180,7 @@ main () {
 	done
 	kernel_commands="$strip_kernel_commands"
 
-	[[ -z $valid_kernel_commands ]] && ewarn "Warning, kernel command \"root=\" is missing from loaded configuration!"
+	[[ -z $valid_kernel_commands ]] && ewarn "Warning! Kernel command \"root=\" is missing from loaded configuration!"
 
 	# Get initial state of UEFI entries
 	initial_uefi_state="$(efibootmgr -u)"
