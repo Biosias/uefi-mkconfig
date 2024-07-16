@@ -171,6 +171,8 @@ main () {
 		kernel_prefixes="${kernel_prefixes} $(head -n1 /usr/lib/kernel/entry-token)-"
 	fi
 
+	echo "$kernel_prefixes"
+
 	# Verify kernel commands
 	for check_config in $kernel_commands; do
 		# Strip initrd=* from config file
@@ -196,13 +198,9 @@ main () {
 	local kernel_images_new=
 	local kernel_images_old=
 
-	# Find all .efi files on this partition and split them to old and new
-	for prefix in $kernel_prefixes; do
-		find_results_new="$(find $partition_mounts -name "$prefix*.efi" ! -name "$prefix*-old.efi" -printf "%f\n")"
-		find_results_old="$(find $partition_mounts -name "$prefix*-old.efi" -printf "%f\n")"
-		[[ -n "$find_results_new" ]] && kernel_images_new+="$find_results_new"
-		[[ -n "$find_results_old" ]] && kernel_images_old+="$find_results_old"
-	done
+	kernel_images_new="$(find $partition_mounts -type f -name "*.efi" -printf "%f\n" | grep -E ".*(${kernel_prefixes// /\|}).*")"
+	kernel_images_old="$(echo "$kernel_images_new" | grep "old.efi")"
+	kernel_images_new="$(echo "$kernel_images_new" | grep -v "old.efi")"
 
 	# Sort kernel images
 	kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")" 
