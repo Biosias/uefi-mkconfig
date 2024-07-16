@@ -19,8 +19,16 @@ These quirks are more common the older the hardware is.
 ## Setup
 After installation there are few steps that need to be taken before uefi-mkconfig can be used:
 
-### 1. Verify boot partition type
-uefi-mkconfig uses lsblk to identify which mounted partitions are EFI partitions.
+### 1. Install the dependencies
+uefi-mkconfig uses the following programs:
+* Bash,
+* efibootmgr,
+* GNU Core Utilities,
+* util-linux,
+* GNU Find Utilities.
+
+### 2. Verify boot partition type
+uefi-mkconfig uses the `lsblk` command to identify which mounted partitions are EFI partitions.
 
 Because of this, all EFI partitions need to be of a correct partition type (Partition type EFI System).
 
@@ -34,15 +42,15 @@ nvme0n1                                       259:0    0 500G  0 disk
 ├─nvme0n1p1                                   259:1    0     1G  0 part  /boot  c12a7328-f81f-11d2-ba4b-00a0c93ec93b EFI System
 ```
 
-### 2. Create configuration file
-Configuration file should be an ordinary text file named `uefi-mkconfig` located in one of following directories:
+### 3. Create configuration file
+The configuration file should be an ordinary text file named `uefi-mkconfig` located in one of following directories:
 
 * `/etc/default/`,
 * `/etc/kernel/`,
 * `/usr/lib/kernel/`.
 
-### 3. Add kernel commands
-This configuration file should contain **ONLY** space separated list of kernel commands which should be used for creating UEFI booting entries.
+### 4. Add kernel commands
+This configuration file should contain **only** space separated list of kernel commands which should be used for creating UEFI booting entries.
 For example:
 
 ```console
@@ -52,7 +60,7 @@ crypt_root=UUID=dcb0cc6f-ddac-ge38-b92c-e59edc55dv61 root=/dev/mapper/gentoo roo
 
 In case this configuration file doesn't exist, uefi-mkconfig will refuse to run.
 
-### 4. Add all EFI partitions to fstab
+### 5. Add all EFI partitions to fstab
 uefi-mkconfig autodiscovers kernel images by searching all mounted EFI partitions.
 This means that having all EFI partitions you want to use, mounted upon running uefi-mkconfig is paramount.
 If they are not, the script will refuse to run.
@@ -63,7 +71,7 @@ Because of this, adding all EFI partitions, you want to use, into the `/etc/fsta
 ## Features
 
 ### 1. Automatic UEFI Entry Management
-uefi-mkconfig uses `efibootmgr` to create and delete EFI entries for directly booting linux kernels.
+uefi-mkconfig uses efibootmgr to create and delete EFI entries for directly booting linux kernels.
 
 Automatic management is limited to range `0100`-`0200` Boot IDs in the UEFI Firmware.
 These IDs are hexadecimal numbers, so there are 256 slots which are managed automatically.
@@ -109,7 +117,6 @@ Each entry created by this script will have following format of entry label:
 
 Normal entries are marked as `UMC` and backup entries as `UMCB`.
 Entries will also be identified by patition label of a partition its kernel images is located on or in case partition label isn't set, filesystem UUID will be used.
-
 Example:
 
 ```
@@ -119,7 +126,6 @@ Boot01FF* UMC /EFI/Gentoo/vmlinuz-6.9.9-gentoo-dist.efi on boot1
 ### 7. Ignoring Kernel Images
 If needed, some kernel images can be ignored by creating an empty file in the same directory as the kernel with the same name
 as efi file of the kernel image with `.ignore` suffix.
-
 Example:
 
 ```console
@@ -155,9 +161,11 @@ drwxr-xr-x 3 root root     4096 Apr  4 10:15 ..
 -rwxr-xr-x 1 root root        0 Jun 28 10:56 vmlinuz-6.9.6-gentoo-dist.efi.uefibackup
 ```
 
-## Troubbleshooting
+## Troubleshooting
 
-1. Sometimes when running uefi-mkconfig from within a chroot, lsblk can cause problems resulting in uefi-mkconfig to not work. (For example when installing Gentoo Linux.)
+### 1. chroot problems
+Sometimes when running uefi-mkconfig from within a chroot, `lsblk` can cause problems resulting in uefi-mkconfig to not work.
+(For example when installing Gentoo Linux.)
 If this happens, exit the chroot, copy configuration from rootfs of the system being installed to the mount point of the LiveCD and run uefi-mkconfig again outside of the chroot.
 Be sure to have the EFI partition mounted.
 
