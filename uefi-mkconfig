@@ -171,8 +171,6 @@ main () {
 		kernel_prefixes="${kernel_prefixes} $(head -n1 /usr/lib/kernel/entry-token)-"
 	fi
 
-	echo "$kernel_prefixes"
-
 	# Verify kernel commands
 	for check_config in $kernel_commands; do
 		# Strip initrd=* from config file
