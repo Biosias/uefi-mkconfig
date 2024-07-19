@@ -74,13 +74,24 @@ add_uefi_entry () (
 		ewarn "No initramfs found for \"$partition_mount$efi_file_path\"."
 	fi
 
+	# Find disk name and gpt partition id
+	for line in $(lsblk -lno NAME); do
+        	if [[ "$partition" == *"$line"* ]] && [[ "$partition" != "$line" ]]; then
+                	local disk
+                	local partition_id
+                	disk="$line"
+                	partition_id="${partition//$line}"
+                	partition_id="${partition_id//p}"
+        	fi
+	done
+
 	# Add new entry
 	if [[ -n $backup_efi ]]; then
 		# When creating backup entry, don't add it to the bootorder
-		efibootmgr -q --create-only -b "$bootnum" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
+		efibootmgr -q --create-only -b "$bootnum" --disk /dev/"$disk" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
 			-u "$adding_kernel_commands" || die "Failed to add BACKUP UEFI entry for \"$efi_file_path\""
 	else
-		efibootmgr -q --create -b "$bootnum" --disk /dev/"$partition" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
+		efibootmgr -q --create -b "$bootnum" --disk /dev/"$disk" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
 			-u "$adding_kernel_commands" || die "Failed to add UEFI entry for \"$efi_file_path\""
 	fi
 )
