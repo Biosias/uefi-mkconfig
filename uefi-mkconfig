@@ -28,13 +28,13 @@ add_uefi_entry () (
 	# Create path to initramfs
 	local initramfs_image
 	if [[ -z $kernel_version ]]; then
-	    # Use versionless initramfs image if the kernel efi file is versionless
-	    initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs.img"
+		# Use versionless initramfs image if the kernel efi file is versionless
+		initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs.img"
 	else
-        initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs-$kernel_version.img"
+		initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs-$kernel_version.img"
 	fi
 
-    # Add .old suffix to initramfs in case we are handling kernel with -old suffix
+	# Add .old suffix to initramfs in case we are handling kernel with -old suffix
 	[[ "$efi_file_path" == *"-old."* ]] && initramfs_image="${initramfs_image/-old}.old"
 
 	# Strip .uefibackup from efi file path
@@ -263,10 +263,10 @@ main () {
 		kernel_version="${efi_file_path//*\//}"
 		## Remove everything before first - to remove any prefixes
 		if [[ "$kernel_version" == *"-"* ]]; then
-		    kernel_version="${kernel_version/${kernel_version%%-*}-/}"
+			kernel_version="${kernel_version/${kernel_version%%-*}-/}"
 		else
-		    # Disable kernel_version variable if the kernel efi file is versionless
-		    kernel_version=
+			# Disable kernel_version variable if the kernel efi file is versionless
+			kernel_version=
 		fi
 		## Remove .efi suffix if it exists
 		[[ "$kernel_version" == *".efi"* ]] && kernel_version="${kernel_version/.efi*/}"
