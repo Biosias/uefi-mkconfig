@@ -73,8 +73,11 @@ add_uefi_entry () (
 		adding_kernel_commands="${adding_kernel_commands} initrd=${microcode_path//\//\\}intel-uc.img"
 	fi
 
-	# Check if corresponding initramfs exists
-	if [[ -f "$partition_mount$initramfs_image" ]]; then
+	if  [[ -f "$partition_mount$initramfs_image.ignore" ]]; then
+	    # Ignore chosen initramfs image
+	    ewarn "Ignoring initramfs image \"$partition_mount$initramfs_image\" of \"$partition_mount$efi_file_path\""
+	elif [[ -f "$partition_mount$initramfs_image" ]]; then
+	    # Check if corresponding initramfs exists
 		adding_kernel_commands="${adding_kernel_commands} initrd=${initramfs_image//\//\\}"
 	else
 		ewarn "No initramfs found for \"$partition_mount$efi_file_path\"."
