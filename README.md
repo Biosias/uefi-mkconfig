@@ -87,6 +87,17 @@ After discovering kernel image, uefi-mkconfig will search the directory said ker
 
 Please **do not put** the `initrd=` entry to the kernel commads in uefi-mkconfig configuration file manually. It will be stripped out of it!
 
+If needed, initramfs image can be ignored by creating empty file named the same way with the suffix `.ignore`: 
+
+```console
+# ls -l /boot/EFI/Gentoo
+total 0
+-rwxr-xr-x 1 root root 0 May 29 16:26 amd-uc.img
+-rwxr-xr-x 1 root root 0 May 29 16:26 initramfs-6.8.9-gentoo.img
+-rwxr-xr-x 1 root root 0 May 29 16:26 initramfs-6.8.9-gentoo.img.ignore
+-rwxr-xr-x 1 root root 0 May 29 16:28 vmlinuz-6.8.9-gentoo.efi
+```
+
 ### 4. Microcode Loading
 uefi-mkconfig can autodiscover and add microcode image to the uefi entry.
 For this to happen the microcode image needs to be present in the same directory as kernel images.
