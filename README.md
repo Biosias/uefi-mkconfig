@@ -49,7 +49,9 @@ The configuration file should be an ordinary text file named `uefi-mkconfig` loc
 * `/etc/kernel/`,
 * `/usr/lib/kernel/`.
 
-### 4. Add kernel commands
+### 4. Add configuration options
+
+# uefi-mkconfig
 This configuration file should contain **only** space separated list of kernel commands which should be used for creating UEFI booting entries.
 For example:
 
@@ -59,6 +61,13 @@ crypt_root=UUID=dcb0cc6f-ddac-ge38-b92c-e59edc55dv61 root=/dev/mapper/gentoo roo
 ```
 
 In case this configuration file doesn't exist, uefi-mkconfig will refuse to run.
+
+# uefi-labl
+A custom label that will be used for the efi entry
+```console
+# cat /etc/default/uefi-label
+MyLinuxInstall
+```
 
 ### 5. Add all EFI partitions to fstab
 uefi-mkconfig autodiscovers kernel images by searching all mounted EFI partitions.

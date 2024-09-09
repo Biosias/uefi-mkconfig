@@ -15,15 +15,33 @@ ewarn() {
 
 add_uefi_entry () (
 	# Create label for UEFI entry
-	local entry_label
-	entry_label="${efi_file_path/.uefibackup} on $partition_label "
-
-	# Add prefix to entry label for easier identification
-	if [[ -n $backup_efi ]]; then
-		entry_label="UMCB $entry_label"
+	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
+		if [[ -f "${INSTALLKERNEL_CONF_ROOT}/uefi-label" ]]; then
+			entry_label="$(cat "${KERNEL_INSTALL_CONF_ROOT}/uefi-label")"
+		fi
+	elif [[ -f /etc/default/uefi-label ]]; then
+		entry_label="$(cat /etc/default/uefi-label)"
+		einfo "Using kernel label from \"/etc/default/uefi-label\""
+	elif [[ -f /etc/kernel/uefi-label ]]; then
+		entry_label="$(cat /etc/kernel/uefi-label)"
+		einfo "Using kernel label from \"/etc/kernel/uefi-label\""
+	elif [[ -f /usr/lib/kernel/uefi-label ]]; then
+		entry_label="$(cat /usr/lib/kernel/uefi-label)"
+		einfo "Using kernel label from \"/usr/lib/kernel/uefi-label\""
 	else
-		entry_label="UMC $entry_label"
+		entry_label="${efi_file_path/.uefibackup} on $partition_label "
+		einfo "No uefi-label configuration file found!"
+
+		# Add prefix to entry label for easier identification
+		if [[ -n $backup_efi ]]; then
+			entry_label="UMCB $entry_label"
+		else
+			entry_label="UMC $entry_label"
+		fi
 	fi
+
+
+
 
 	# Create path to initramfs
 	local initramfs_image
