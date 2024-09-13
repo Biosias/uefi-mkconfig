@@ -220,6 +220,11 @@ main () {
 	kernel_images_old="$(echo "$kernel_images_new" | grep "old.efi")"
 	kernel_images_new="$(echo "$kernel_images_new" | grep -v "old.efi")"
 
+        # Check if any kernel images were found
+        if [ -z "${kernel_images_old}" ] && [ -z "${kernel_images_new}" ]; then
+                die "No efi kernel images found!"
+        fi
+
 	# Sort kernel images
 	kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")"
 
