@@ -177,7 +177,8 @@ drwxr-xr-x 3 root root     4096 Apr  4 10:15 ..
 ### 1. chroot problems
 Sometimes when running uefi-mkconfig from within a chroot, `lsblk` can cause problems resulting in uefi-mkconfig to not work.
 (For example when installing Gentoo Linux.)
-If this happens, exit the chroot, copy configuration from rootfs of the system being installed to the mount point of the LiveCD and run uefi-mkconfig again outside of the chroot.
+If this happens, make sure that `/run` is mounted correctly into the chroot.
+If the problem persits even after mounting `/run`, exit the chroot, copy configuration from rootfs of the system being installed to the mount point of the LiveCD and run uefi-mkconfig again outside of the chroot.
 Be sure to have the EFI partition mounted.
 
 ## Credits
