@@ -2,6 +2,7 @@
 
 die() {
 	echo -e " ${NOCOLOR-\e[1;31m*\e[0m }${*}" >&2
+	echo -e " ${NOCOLOR-\e[1;31m*\e[0m }For more information please refer to https://github.com/Biosias/uefi-mkconfig"
 	exit 1
 }
 
@@ -144,8 +145,11 @@ main () {
 	if [[ ${EUID} -ne 0 ]]; then
 		die "Please run uefi-mkconfig as root!"
 
+	elif [[ -z $(mount | grep "/run ") ]]; then
+		die "Cannot access /run. If you are inside of chroot make sure it is properly mounted!"
+
 	elif [[ -z $(lsblk -o PARTTYPE | grep -v -e "PARTTYPE" -e "^$") ]]; then
-		die "lsblk can't see PARTTYPE! Please refer to Troubleshooting section in README or open an issue"
+		die "lsblk can't see PARTTYPE!"
 
 	elif [[ -z ${mounted_efi_partitions} ]]; then
 		die "No mounted efi partitions!"
@@ -170,7 +174,7 @@ main () {
 		kernel_commands="$(tr -s "${IFS}" ' ' </usr/lib/kernel/uefi-mkconfig)"
 		einfo "Using kernel commands from \"/usr/lib/kernel/uefi-mkconfig\""
 	else
-		die "No uefi-mkconfig configuration file found!"
+		die "No configuration file found! It needs to be created and configured manually!"
 	fi
 
 	[[ -z "$kernel_commands" ]] && ewarn "Warning! Loaded empty uefi-mkconfig configuration file!"
