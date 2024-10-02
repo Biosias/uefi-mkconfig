@@ -150,6 +150,7 @@ load_config () {
 
 	for kernel_config_path in ${kernel_config_paths}; do
 		if [[ -f ${kernel_config_path}/uefi-mkconfig ]]; then
+			# Check if found config file is legacy or not
 			if [[ "$(grep "kernel_config" "${kernel_config_path}/uefi-mkconfig")" == "" ]]; then
 				kernel_config["${default_label}"]="$(tr -s "${IFS}" ' ' <"${kernel_config_path}/uefi-mkconfig")"	
 			else
@@ -171,6 +172,8 @@ load_config () {
 			[[ "$check_config" == "root="* ]] && valid_kernel_commands=1
 		done
 
+		#[[ $(wc -c <<< "${kernel_config[${config}]}") -gt 60 ]] && die "Entry label too long!"
+
 		[[ -z $valid_kernel_commands ]] && ewarn "Warning! Kernel command \"root=\" is missing from loaded configuration!"
 		
 		[[ -z ${kernel_config[${config}]} ]] && ewarn "Warning! Loaded empty uefi-mkconfig configuration!"
@@ -186,7 +189,6 @@ main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 	mounted_efi_partitions=$(lsblk -lno MOUNTPOINTS,PARTTYPE | grep "$efi_parttype")
 	valid_kernel_commands=
-	entry_id=1
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	declare -A kernel_config 
 
@@ -264,6 +266,23 @@ main () {
 	done
 
 	load_config
+	
+	# Skip this kernel version if ignore file is found
+	for efi_file in $partition_efis; do
+		if [[ -f "$efi_file.ignore" ]]; then
+			# Get partition mount
+			partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
+			# Get partition
+			partition=$(mount | grep "$partition_mount ")
+			partition=${partition// */}
+			partition=${partition//*\//}
+			ewarn "Ignoring \"$efi_file\" on \"$partition\""
+			partition_efis=${partition_efis/${efi_file} }
+		fi
+	done
+
+	# Get number of entries that will be created to be used as unique entry id
+	entry_id=$(($(wc -w <<< "$partition_efis") * ${#kernel_config[@]}))
 
 	for efi_file in $partition_efis; do
 		# Get partition mount
@@ -273,12 +292,6 @@ main () {
 		partition=$(mount | grep "$partition_mount ")
 		partition=${partition// */}
 		partition=${partition//*\//}
-
-		# Skip this kernel version if ignore file is found
-		if [[ -f "$efi_file.ignore" ]]; then
-			ewarn "Ignoring \"$efi_file\" on \"$partition\""
-			continue
-		fi
 
 		# Get partition label
 		partition_label="$(lsblk "/dev/$partition" -lno PARTLABEL)"
@@ -336,7 +349,7 @@ main () {
 		for entry_label in "${!kernel_config[@]}"; do
 			kernel_commands="${kernel_config[${entry_label}]}"
 			add_uefi_entry
-			entry_id=$((entry_id+1))
+			entry_id=$((entry_id-1))
 		done
 
 	done
