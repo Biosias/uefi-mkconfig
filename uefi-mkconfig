@@ -19,6 +19,9 @@ add_uefi_entry () (
 	#Substitute %values in entry labels 
 	entry_label="${entry_label/\%efi_file_path/${efi_file_path/.uefibackup}}"
 	entry_label="${entry_label/\%partition_label/$partition_label}"
+	entry_label="${entry_label/\%kernel_version/${kernel_version/-*}}"
+	entry_label="${entry_label/\%linux_name/$NAME}"
+	entry_label="${entry_label/\%entry_id/$entry_id}"
 	
 	# Add prefix to entry label for easier identification
 	if [[ -n $backup_efi ]]; then
@@ -136,47 +139,30 @@ wipe_entries () {
 }
 
 load_config () {
+	#legacy_label="%efi_file_path on %partition_label"
+	default_label="%entry_id %linux_name Linux %kernel_version"
+	local kernel_config_paths
+	local kernel_config_path
+	local config
+	
+	kernel_config_paths="/etc/default /etc/kernel /usr/lib/kernel"
+	[[ -n "${INSTALLKERNEL_CONF_ROOT}" ]] && kernel_config_paths="${INSTALLKERNEL_CONF_ROOT} ${kernel_config_paths}"
 
-	default_label="%efi_file_path on %partition_label"
-
-	# Load kernel commands from config files
-	if [[ -n "${INSTALLKERNEL_CONF_ROOT}" ]]; then
-		if [[ -f "${INSTALLKERNEL_CONF_ROOT}/uefi-mkconfig" ]]; then
-			if [[ "$(grep "kernel_config" "${INSTALLKERNEL_CONF_ROOT}/uefi-mkconfig")" == "" ]]; then
-				kernel_config["${default_label}"]="$(tr -s "${IFS}" ' ' <"${KERNEL_INSTALL_CONF_ROOT}/uefi-mkconfig")"
+	for kernel_config_path in ${kernel_config_paths}; do
+		if [[ -f ${kernel_config_path}/uefi-mkconfig ]]; then
+			if [[ "$(grep "kernel_config" "${kernel_config_path}/uefi-mkconfig")" == "" ]]; then
+				kernel_config["${default_label}"]="$(tr -s "${IFS}" ' ' <"${kernel_config_path}/uefi-mkconfig")"	
 			else
-				source "${INSTALLKERNEL_CONF_ROOT}/uefi-mkconfig"
+				source "${kernel_config_path}/uefi-mkconfig"
 			fi
+			einfo "Using kernel commands from \"${kernel_config_path}/uefi-mkconfig\""
 		fi
-	elif [[ -f /etc/default/uefi-mkconfig ]]; then
-		if [[ "$(grep "kernel_config" "/etc/default/uefi-mkconfig")" == "" ]]; then
-			kernel_config["${default_label}"]="$(tr -s "${IFS}" ' ' </etc/default/uefi-mkconfig)"	
-		else
-			source "/etc/default/uefi-mkconfig"
-		fi
-		einfo "Using kernel commands from \"/etc/default/uefi-mkconfig\""
-	elif [[ -f /etc/kernel/uefi-mkconfig ]]; then
-		if [[ "$(grep "kernel_config" "/etc/kernel/uefi-mkconfig")" == "" ]]; then
-			kernel_config["${default_label}"]="$(tr -s "${IFS}" ' ' </etc/kernel/uefi-mkconfig)"
-		else
-			source "/etc/kernel/uefi-mkconfig"
-		fi
-		einfo "Using kernel commands from \"/etc/kernel/uefi-mkconfig\""
-	elif [[ -f /usr/lib/kernel/uefi-mkconfig ]]; then
-		if [[ "$(grep "kernel_config" "/usr/lib/kernel/uefi-mkconfig")" == "" ]]; then
-			kernel_config["${default_label}"]="$(tr -s "${IFS}" ' ' </usr/lib/kernel/uefi-mkconfig)"
-		else
-			source "/usr/lib/kernel/uefi-mkconfig"
-		fi
-		einfo "Using kernel commands from \"/usr/lib/kernel/uefi-mkconfig\""
-	else
-		die "No configuration file found! It needs to be created and configured manually!"
-	fi
+	done
+	
+	#[[ -z ${kernel_config[@]} ]] && die "No configuration file found! It needs to be created and configured manually!"
 
 	for config in "${!kernel_config[@]}"; do
 		
-		#echo "debug: ${kernel_config[${config}]}"	
-	
 		# Verify kernel commands
 		for check_config in ${kernel_config[${config}]}; do
 			# Strip initrd=* from config file
@@ -191,8 +177,6 @@ load_config () {
 	
 		kernel_config[${config}]="$strip_kernel_commands"
 
-		#echo "debug2: ${kernel_config[${config}]}"
-		
 		valid_kernel_commands=
 		strip_kernel_commands=
 	done
@@ -202,6 +186,7 @@ main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 	mounted_efi_partitions=$(lsblk -lno MOUNTPOINTS,PARTTYPE | grep "$efi_parttype")
 	valid_kernel_commands=
+	entry_id=1
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	declare -A kernel_config 
 
@@ -351,6 +336,7 @@ main () {
 		for entry_label in "${!kernel_config[@]}"; do
 			kernel_commands="${kernel_config[${entry_label}]}"
 			add_uefi_entry
+			entry_id=$((entry_id+1))
 		done
 
 	done
