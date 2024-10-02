@@ -14,9 +14,9 @@ ewarn() {
 	echo -e " ${NOCOLOR-\e[1;33m*\e[0m }${*}" >&2
 }
 
-add_uefi_entry () (
+add_uefi_entry () {
 
-	#Substitute %values in entry labels 
+	# Substitute %values in entry labels 
 	entry_label="${entry_label/\%efi_file_path/${efi_file_path/.uefibackup}}"
 	entry_label="${entry_label/\%partition_label/$partition_label}"
 	entry_label="${entry_label/\%kernel_version/${kernel_version/-*}}"
@@ -29,6 +29,8 @@ add_uefi_entry () (
 	else
 		entry_label="UMC $entry_label"
 	fi
+
+	[[ $ENTRY_LABEL_LIMIT == true ]] && (( $(wc -c <<< "${entry_label}") > 60 )) && die "Entry label too long!"
 
 	# Create path to initramfs
 	local initramfs_image
@@ -108,7 +110,7 @@ add_uefi_entry () (
 		efibootmgr -q --create -b "$bootnum" --disk /dev/"$disk" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
 			-u "$adding_kernel_commands" || die "Failed to add UEFI entry for \"$efi_file_path\""
 	fi
-)
+}
 
 clean_legacy_entries () {
 	# Run only if no post 2.0 entries exist
@@ -139,7 +141,6 @@ wipe_entries () {
 }
 
 load_config () {
-	#legacy_label="%efi_file_path on %partition_label"
 	default_label="%entry_id %linux_name Linux %kernel_version"
 	local kernel_config_paths
 	local kernel_config_path
@@ -160,7 +161,18 @@ load_config () {
 		fi
 	done
 	
-	#[[ -z ${kernel_config[@]} ]] && die "No configuration file found! It needs to be created and configured manually!"
+	if [[ -z ${!kernel_config[@]} ]]; then
+		ewarn "No configuration found. Creating default one. Don't forget to configure kernel commandline"
+		echo '# Legacy entry label format
+#kernel_config["%efi_file_path on %partition_label"]=""
+
+# Default entry label format
+kernel_config["%entry_id %linux_name Linux %kernel_version"]=""
+
+# Entry label length limit of 60 characters for better compatibility
+# Can be disabled but thorough testing is advised before using entry labels longer than 60 characters 
+ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
+	fi
 
 	for config in "${!kernel_config[@]}"; do
 		
@@ -171,8 +183,6 @@ load_config () {
 			# Verify if "root=" is present
 			[[ "$check_config" == "root="* ]] && valid_kernel_commands=1
 		done
-
-		#[[ $(wc -c <<< "${kernel_config[${config}]}") -gt 60 ]] && die "Entry label too long!"
 
 		[[ -z $valid_kernel_commands ]] && ewarn "Warning! Kernel command \"root=\" is missing from loaded configuration!"
 		
