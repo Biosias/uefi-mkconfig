@@ -205,7 +205,7 @@ main () {
 	mounted_efi_partitions=$(lsblk -lno MOUNTPOINTS,PARTTYPE | grep "$efi_parttype")
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
-	declare -Ag kernel_config 
+	declare -Ag kernel_config
 
 	einfo "Running uefi-mkconfig..."
 
@@ -300,6 +300,9 @@ main () {
 	# Get number of entries that will be created to be used as unique entry id
 	entry_id=$(($(wc -w <<< "$partition_efis") * ${#kernel_config[@]}))
 
+	# Create index for associative array
+	kernel_config_index=("${!kernel_config[@]}")
+
 	for efi_file in $partition_efis; do
 		# Get partition mount
 		partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
@@ -344,7 +347,12 @@ main () {
 		fi
 
 		# Add efi entry for efi file
-		for entry_label in "${!kernel_config[@]}"; do
+		local index
+		for index in "${!kernel_config_index[@]}"; do
+			# Invert inverted order so it matches order in config file
+			entry_label=$((($index*-1)+${#kernel_config_index[@]}-1))
+			entry_label=${kernel_config_index[$entry_label]}
+
 			# If bootnum is empty, set it to max ID 0200
 			if [[ -z $bootnum ]]; then
 				bootnum=512 # 512 is decimal value of 0200
