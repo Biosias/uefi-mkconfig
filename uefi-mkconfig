@@ -22,6 +22,7 @@ add_uefi_entry () {
 	entry_label="${entry_label/\%kernel_version/${kernel_version/-*}}"
 	entry_label="${entry_label/\%linux_name/$NAME}"
 	entry_label="${entry_label/\%entry_id/$entry_id}"
+	entry_label="${entry_label/\%partition/$partition}"
 	
 	# Add prefix to entry label for easier identification
 	if [[ -n $backup_efi ]]; then
@@ -30,7 +31,7 @@ add_uefi_entry () {
 		entry_label="UMC $entry_label"
 	fi
 
-	[[ $ENTRY_LABEL_LIMIT == true ]] && (( $(wc -c <<< "${entry_label}") > 60 )) && die "Entry label too long!"
+	[[ $ENTRY_LABEL_LIMIT == true ]] && (( $(wc -c <<< "${entry_label}") > 60 )) && die "Entry label length is over 60 characters! Creater shorter one or disable this check. "
 
 	# Create path to initramfs
 	local initramfs_image
@@ -163,15 +164,19 @@ load_config () {
 	
 	if [[ -z ${!kernel_config[@]} ]]; then
 		ewarn "No configuration found. Creating default one. Don't forget to configure kernel commandline"
+		
 		echo '# Legacy entry label format
 #kernel_config["%efi_file_path on %partition_label"]=""
 
 # Default entry label format
+# Insert your kernel commandline arguments between double quotation marks after "=" on the line below
 kernel_config["%entry_id %linux_name Linux %kernel_version"]=""
 
 # Entry label length limit of 60 characters for better compatibility
 # Can be disabled but thorough testing is advised before using entry labels longer than 60 characters 
 ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
+
+		kernel_config["${default_label}"]=""	
 	fi
 
 	for config in "${!kernel_config[@]}"; do
@@ -337,26 +342,26 @@ main () {
 			backup_efi=1
 		fi
 
-		# If bootnum is empty, set it to max ID 0200
-		if [[ -z $bootnum ]]; then
-			bootnum=512 # 512 is decimal value of 0200
-		else
-			# If it already has value, convert it to decimal and subtract 1
-			bootnum="$(($(printf %d 0x"$bootnum") - 1))"
-		fi
-
-		# Find first free hex address smaller than or equal to 0200 for new UEFI boot entry
-		while [[ "$(grep -v " UMC " <<< "$initial_uefi_state")" == *"Boot$(printf %04X $bootnum)"* ]]; do
-			bootnum=$((bootnum - 1))
-			# Die if script exceeds managed range 0200-0100
-			[[ $bootnum -lt 256 ]] && die "All Boot IDs within managed range are taken!"
-		done
-
-		# Convert chosen entry ID into hex
-		bootnum="$(printf %04X $bootnum)"
-
 		# Add efi entry for efi file
 		for entry_label in "${!kernel_config[@]}"; do
+			# If bootnum is empty, set it to max ID 0200
+			if [[ -z $bootnum ]]; then
+				bootnum=512 # 512 is decimal value of 0200
+			else
+				# If it already has value, convert it to decimal and subtract 1
+				bootnum="$(($(printf %d 0x"$bootnum") - 1))"
+			fi
+
+			# Find first free hex address smaller than or equal to 0200 for new UEFI boot entry
+			while [[ "$(grep -v " UMC " <<< "$initial_uefi_state")" == *"Boot$(printf %04X $bootnum)"* ]]; do
+				bootnum=$((bootnum - 1))
+				# Die if script exceeds managed range 0200-0100
+				[[ $bootnum -lt 256 ]] && die "All Boot IDs within managed range are taken!"
+			done
+
+			# Convert chosen entry ID into hex
+			bootnum="$(printf %04X $bootnum)"
+
 			kernel_commands="${kernel_config[${entry_label}]}"
 			add_uefi_entry
 			entry_id=$((entry_id-1))
