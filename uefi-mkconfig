@@ -205,7 +205,7 @@ main () {
 	mounted_efi_partitions=$(lsblk -lno MOUNTPOINTS,PARTTYPE | grep "$efi_parttype")
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
-	declare -A kernel_config 
+	declare -Ag kernel_config 
 
 	einfo "Running uefi-mkconfig..."
 
@@ -292,7 +292,8 @@ main () {
 			partition=${partition// */}
 			partition=${partition//*\//}
 			ewarn "Ignoring \"$efi_file\" on \"$partition\""
-			partition_efis=${partition_efis/${efi_file} }
+			# Remove ignored efi files from the list
+			partition_efis="${partition_efis/"${efi_file}"}"
 		fi
 	done
 
