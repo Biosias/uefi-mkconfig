@@ -161,7 +161,7 @@ load_config () {
 				kernel_configs="$(grep "KERNEL_CONFIG" "${kernel_config_path}/uefi-mkconfig" | grep -v "#")"
 			fi
 			einfo "Using kernel commands from \"${kernel_config_path}/uefi-mkconfig\""
-			continue
+			break
 		fi
 	done
 	
@@ -182,6 +182,9 @@ ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
 
 		kernel_configs="${default_label} ; "	
 	fi
+
+	# Check if only the latest efi file should be added
+	[[ -n $(grep "ONLY_LATEST=true" "${kernel_config_path}/uefi-mkconfig") ]] && ONLY_LATEST=1
 
 	local IFS=$'\n'
 	for config in ${kernel_configs}; do
@@ -217,6 +220,7 @@ main () {
 	mounted_efi_partitions=$(lsblk -lno MOUNTPOINTS,PARTTYPE | grep "$efi_parttype")
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
+	ONLY_LATEST=
 	kernel_configs=
 
 	einfo "Running uefi-mkconfig..."
@@ -312,7 +316,16 @@ main () {
 	# Get number of entries that will be created to be used as unique entry id
 	entry_id=$(($(wc -w <<< "$partition_efis") * ($(wc -l <<< "$kernel_configs")-1)))
 
+	# If only the latest kernel image shoud be added, remove the rest from the list
+	local latest_efi_file
+	latest_efi_file=
+	[[ -n ${ONLY_LATEST} ]] && latest_efi_file="${partition_efis/*\/}"
+
 	for efi_file in $partition_efis; do
+
+		# Make sure only the latest efi file is added from all partitions
+		[[ -n ${latest_efi_file} ]] && [[ "${efi_file/*\/}" != "${latest_efi_file//\ }" ]] && continue
+
 		# Get partition mount
 		partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
 
