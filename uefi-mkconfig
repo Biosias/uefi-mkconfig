@@ -145,6 +145,7 @@ load_config () {
 	default_label="%entry_id %linux_name Linux %kernel_version"
 	local kernel_config_paths
 	local kernel_config_path
+	local kernel_configs_wip
 	local config
 	
 	kernel_config_paths="/etc/default /etc/kernel /usr/lib/kernel"
@@ -153,36 +154,41 @@ load_config () {
 	for kernel_config_path in ${kernel_config_paths}; do
 		if [[ -f ${kernel_config_path}/uefi-mkconfig ]]; then
 			# Check if found config file is legacy or not
-			if [[ "$(grep "kernel_config" "${kernel_config_path}/uefi-mkconfig")" == "" ]]; then
-				kernel_config["${default_label}"]="$(tr -s "${IFS}" ' ' <"${kernel_config_path}/uefi-mkconfig")"	
+			if [[ "$(grep "KERNEL_CONFIG" "${kernel_config_path}/uefi-mkconfig")" == "" ]]; then
+				kernel_configs="${default_label} ; $(tr -s "${IFS}" ' ' <"${kernel_config_path}/uefi-mkconfig")"
+				ewarn "Using legacy uefi-mkconfig configuration file format!"
 			else
-				source "${kernel_config_path}/uefi-mkconfig"
+				kernel_configs="$(grep "KERNEL_CONFIG" "${kernel_config_path}/uefi-mkconfig" | grep -v "#")"
 			fi
 			einfo "Using kernel commands from \"${kernel_config_path}/uefi-mkconfig\""
+			continue
 		fi
 	done
 	
-	if [[ -z ${!kernel_config[@]} ]]; then
+	if [[ -z ${kernel_configs} ]]; then
 		ewarn "No configuration found. Creating default one. Don't forget to configure kernel commandline"
 		
 		echo '# Legacy entry label format
 #kernel_config["%efi_file_path on %partition_label"]=""
 
 # Default entry label format
-# Insert your kernel commandline arguments between double quotation marks after "=" on the line below
-kernel_config["%entry_id %linux_name Linux %kernel_version"]=""
+# Insert your kernel commandline arguments between double quotation marks after "; " on the line below
+# Make sure space between ";" and your first kernel command argument remains
+KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; "
 
 # Entry label length limit of 60 characters for better compatibility
 # Can be disabled but thorough testing is advised before using entry labels longer than 60 characters 
 ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
 
-		kernel_config["${default_label}"]=""	
+		kernel_configs="${default_label} ; "	
 	fi
 
-	for config in "${!kernel_config[@]}"; do
+	local IFS=$'\n'
+	for config in ${kernel_configs}; do
 		
+		local IFS=' '
 		# Verify kernel commands
-		for check_config in ${kernel_config[${config}]}; do
+		for check_config in ${config}; do
 			# Strip initrd=* from config file
 			[[ "$check_config" != *"initrd="* ]] && strip_kernel_commands="$strip_kernel_commands $check_config"
 			# Verify if "root=" is present
@@ -191,13 +197,19 @@ ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
 
 		[[ -z $valid_kernel_commands ]] && ewarn "Warning! Kernel command \"root=\" is missing from loaded configuration!"
 		
-		[[ -z ${kernel_config[${config}]} ]] && ewarn "Warning! Loaded empty uefi-mkconfig configuration!"
+		[[ -z ${config} ]] && ewarn "Warning! Loaded empty uefi-mkconfig configuration!"
 	
-		kernel_config[${config}]="$strip_kernel_commands"
+		kernel_configs_wip="$strip_kernel_commands
+$kernel_configs_wip"
 
 		valid_kernel_commands=
 		strip_kernel_commands=
+		
+		local IFS=$'\n'
 	done
+
+	kernel_configs_wip=${kernel_configs_wip//'KERNEL_CONFIG="'}
+	kernel_configs=${kernel_configs_wip//\"}
 }
 
 main () {
@@ -205,7 +217,7 @@ main () {
 	mounted_efi_partitions=$(lsblk -lno MOUNTPOINTS,PARTTYPE | grep "$efi_parttype")
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
-	declare -Ag kernel_config
+	kernel_configs=
 
 	einfo "Running uefi-mkconfig..."
 
@@ -298,10 +310,7 @@ main () {
 	done
 
 	# Get number of entries that will be created to be used as unique entry id
-	entry_id=$(($(wc -w <<< "$partition_efis") * ${#kernel_config[@]}))
-
-	# Create index for associative array
-	kernel_config_index=("${!kernel_config[@]}")
+	entry_id=$(($(wc -w <<< "$partition_efis") * ($(wc -l <<< "$kernel_configs")-1)))
 
 	for efi_file in $partition_efis; do
 		# Get partition mount
@@ -347,11 +356,13 @@ main () {
 		fi
 
 		# Add efi entry for efi file
-		local index
-		for index in "${!kernel_config_index[@]}"; do
-			# Invert inverted order so it matches order in config file
-			entry_label=$((($index*-1)+${#kernel_config_index[@]}-1))
-			entry_label=${kernel_config_index[$entry_label]}
+
+		local IFS=$'\n'
+		for kernel_config in ${kernel_configs}; do
+			
+			entry_label="${kernel_config/\ \;\ *}"
+			entry_label="${entry_label/\ }"
+			kernel_commands=" ${kernel_config/*\ \;\ }"
 
 			# If bootnum is empty, set it to max ID 0200
 			if [[ -z $bootnum ]]; then
@@ -371,7 +382,6 @@ main () {
 			# Convert chosen entry ID into hex
 			bootnum="$(printf %04X $bootnum)"
 
-			kernel_commands="${kernel_config[${entry_label}]}"
 			add_uefi_entry
 			entry_id=$((entry_id-1))
 		done
