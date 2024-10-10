@@ -170,26 +170,25 @@ load_config () {
 	if [[ -z ${kernel_configs} ]]; then
 		ewarn "No configuration found. Creating default one. Don't forget to configure kernel commandline"
 		
-		echo '# Legacy entry label format
-#kernel_config["%efi_file_path on %partition_label"]=""
-
-# Default entry label format
-# Insert your kernel commandline arguments between double quotation marks after "; " on the line below
-# Make sure space between ";" and your first kernel command argument remains
+		echo '# Add your kernel commandline arguments following "; "
+# KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; example=test kernel=test cmdline=test arguments=test"
 KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; "
 
-# Entry label length limit of 60 characters for better compatibility
-# Can be disabled but thorough testing is advised before using entry labels longer than 60 characters 
-ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
+# Turn on to only add efi files of the latest kernel version
+# ONLY_LATEST=false
+
+# Entry label length limit of 60 characters for better compatibility with UEFI Firmware
+# Can be disabled but thorough testing is recommended before using entry labels longer than 60 characters 
+# ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
 
 		kernel_configs="${default_label} ; "	
+	else
+		# Check if only the latest efi file should be added
+		[[ -n $(grep "ONLY_LATEST=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ONLY_LATEST=1
+
+		# Check if entry label limit is turned off
+		[[ -n $(grep "ENTRY_LABEL_LIMIT=false" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ENTRY_LABEL_LIMIT=0
 	fi
-
-	# Check if only the latest efi file should be added
-	[[ -n $(grep "ONLY_LATEST=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ONLY_LATEST=1
-
-	# Check if entry label limit is turned off
-	[[ -n $(grep "ENTRY_LABEL_LIMIT=false" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ENTRY_LABEL_LIMIT=0
 
 	local IFS=$'\n'
 	for config in ${kernel_configs}; do
