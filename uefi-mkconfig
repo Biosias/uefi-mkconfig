@@ -31,7 +31,7 @@ add_uefi_entry () {
 		entry_label="UMC $entry_label"
 	fi
 
-	[[ $ENTRY_LABEL_LIMIT == true ]] && (( $(wc -c <<< "${entry_label}") > 60 )) && die "Entry label length is over 60 characters! Creater shorter one or disable this check. "
+	[[ $ENTRY_LABEL_LIMIT == 1 ]] && (( $(wc -c <<< "${entry_label}") > 60 )) && die "Entry label length is over 60 characters! Creater shorter one or disable this check. "
 
 	# Create path to initramfs
 	local initramfs_image
@@ -156,6 +156,8 @@ load_config () {
 			# Check if found config file is legacy or not
 			if [[ "$(grep "KERNEL_CONFIG" "${kernel_config_path}/uefi-mkconfig")" == "" ]]; then
 				kernel_configs="${default_label} ; $(tr -s "${IFS}" ' ' <"${kernel_config_path}/uefi-mkconfig")"
+				# Turn off label length for legacy config file
+				ENTRY_LABEL_LIMIT=0
 				ewarn "Using legacy uefi-mkconfig configuration file format!"
 			else
 				kernel_configs="$(grep "KERNEL_CONFIG" "${kernel_config_path}/uefi-mkconfig" | grep -v "#")"
@@ -184,7 +186,10 @@ ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
 	fi
 
 	# Check if only the latest efi file should be added
-	[[ -n $(grep "ONLY_LATEST=true" "${kernel_config_path}/uefi-mkconfig") ]] && ONLY_LATEST=1
+	[[ -n $(grep "ONLY_LATEST=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ONLY_LATEST=1
+
+	# Check if entry label limit is turned off
+	[[ -n $(grep "ENTRY_LABEL_LIMIT=false" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ENTRY_LABEL_LIMIT=0
 
 	local IFS=$'\n'
 	for config in ${kernel_configs}; do
@@ -220,8 +225,10 @@ main () {
 	mounted_efi_partitions=$(lsblk -lno MOUNTPOINTS,PARTTYPE | grep "$efi_parttype")
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
-	ONLY_LATEST=
 	kernel_configs=
+
+	# Entry label limit is on by default
+	ENTRY_LABEL_LIMIT=1
 
 	einfo "Running uefi-mkconfig..."
 
