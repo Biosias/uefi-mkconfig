@@ -1,20 +1,17 @@
 # uefi-mkconfig
-grub-mkconfig inspired script for automatically managing uefi entries.
+grub-mkconfig inspired script for automatically managing UEFI boot entries.
 
-## Goals
-The goal of this script is to utilise direct kernel booting feature of UEFI firmware to remove the need for using bootloaders and make the process as simple as possible at the same time.
+## Goal
+Make use of UEFIs direct kernel boot feature as simple as possible so it can be used as an alternative to bootloaders. 
 
 ## Warning!
-uefi-mkconfig uses UEFI Firmware to do things like setting boot order and creating boot entries.
-However implementations of UEFI Firmware were shown to not be very standardised and firmware of some hardware vendors can exhibit quirky behaviour.
+Implementation of UEFI Firmware functions like setting boot order and creation of boot entries is very inconsistent across motherboard vendors.
 
-We try to mitigate these behaviours as they are discovered and reported to us.
-However because of low age of this project we can't guarantee that all quirks were mitigated.
-If you find some, please report it to us as soon as possible.
+These inconsistencies result in erratic behaviour which may cause unpredictable behaviour when using uefi-mkconfig on certain motherboards.
 
-**Because of this fact, we strongly recommend testing your firmware if it works correctly with uefi-mkconfig before using it in the production environment!**
+**Therefore we strongly recommend testing uefi-mkconfig on a new system before using it in production.**
 
-These quirks are more common the older the hardware is.
+Some of these problems can be mitigated by us in the uefi-mkconfig code so if you encouter any weird behaviour, please don't hesitate to open an Issue.
 
 ## Setup
 After installation there are few steps that need to be taken before uefi-mkconfig can be used:
@@ -42,25 +39,27 @@ nvme0n1                                       259:0    0 500G  0 disk
 ├─nvme0n1p1                                   259:1    0     1G  0 part  /boot  c12a7328-f81f-11d2-ba4b-00a0c93ec93b EFI System
 ```
 
-### 3. Create configuration file
-The configuration file should be an ordinary text file named `uefi-mkconfig` located in one of following directories:
+### 3. Configure uefi-mkconfig
+uefi-mkconfig will look for configuration files in following directories
 
-* `/etc/default/`,
-* `/etc/kernel/`,
-* `/usr/lib/kernel/`.
+* `/etc/default`
+* `/etc/kernel`
+* `/usr/lib/kernel`
 
-### 4. Add kernel commands
-This configuration file should contain **only** space separated list of kernel commands which should be used for creating UEFI booting entries.
-For example:
+If configuration file isn't found, running uefi-mkconfig will generate skeleton config file in `/etc/default/`.
 
-```console
-# cat /etc/default/uefi-mkconfig
-crypt_root=UUID=dcb0cc6f-ddac-ge38-b92c-e59edc55dv61 root=/dev/mapper/gentoo rootfstype=ext4 resume=/dev/mapper/swap dolvm quiet
+Inside of this file, you can configure kernel commandline arguments and template for naming UEFI boot entries.
+
+Following are examples of a configured label template with its corresponding kernel commandline arguments:
+
+```bash
+KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; root=/dev/mapper/gentoo-root rootfstype=ext4 resume=/dev/mapper/gentoo-swap"
 ```
 
-In case this configuration file doesn't exist, uefi-mkconfig will refuse to run.
+It is possible to create multiple lines like this with different label template and kernel commandline arguments for uefi-mkconfig to create 2 different entries for each kernel image.
+Order of these lines in the configuration file is important since it will be the order in which the entries are added.
 
-### 5. Add all EFI partitions to fstab
+### 4. Add all EFI partitions to fstab
 uefi-mkconfig autodiscovers kernel images by searching all mounted EFI partitions.
 This means that having all EFI partitions you want to use, mounted upon running uefi-mkconfig is paramount.
 If they are not, the script will refuse to run.
@@ -78,6 +77,8 @@ These IDs are hexadecimal numbers, so there are 256 slots which are managed auto
 
 If you need to add custom entry please add it outside of this range.
 This will ensure that uefi-mkconfig will not touch your manually added entry.
+
+`ONLY_LATEST=true` can be set in the configuration file to force uefi-mkconfig to only add entry of the most recent kernel version available.
 
 ### 2. Kernel Auto-Discovery
 uefi-mkconfig searches through all mounted EFI partitions and creates EFI entries for all (not ignored) kernel images it finds.
@@ -120,19 +121,20 @@ If multiple shim files are in the same directory, only the first one, sorted alp
 For now, if SHIM booting is needed, kernel and shim have to be present within directory `/boot/EFI` or its subdirectory.
 
 ### 6. EFI Entry Labling
-Each entry created by this script will have following format of entry label:
+Entry label template is defined in the configuration file in the first section of the `KERNEL_CONFIG` line before the ` ; ` separator
 
-```
-<UMC or UMCB> </Path/to/kernel/image/on/EFI/partition> on <partition label or UUID>
-```
+By default it has limit of 56 characters for regular entries and 55 for backup entries to increase compatibility with as many systems as possible.
+This limit can be overridden with setting `ENTRY_LABEL_LIMIT=true` to false.
+Testing is recommended before using entry labels longer than the set limit before using it in production.
 
-Normal entries are marked as `UMC` and backup entries as `UMCB`.
-Entries will also be identified by patition label of a partition its kernel images is located on or in case partition label isn't set, filesystem UUID will be used.
-Example:
+Following is a list of variables which could be used in entry label templates:
 
-```
-Boot01FF* UMC /EFI/Gentoo/vmlinuz-6.9.9-gentoo-dist.efi on boot1
-```
+1. `%efi_file_path` - Path to the efi file of the kernel
+2. `%partition_label` - Partition label of a partition on which the kernel image being added resides
+3. `%kernel_version` - Version of a kernel being added
+4. `%linux_name` - Distribution name of the syste
+5. `%entry_id` - ID of the entry being added (Recommended to avoid accidentally adding multiple entries with the same label)
+6. `%partition` - Partition on which the kernel image being added resides
 
 ### 7. Ignoring Kernel Images
 If needed, some kernel images can be ignored by creating an empty file in the same directory as the kernel with the same name
