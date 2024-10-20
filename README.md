@@ -184,5 +184,5 @@ If the problem persits even after mounting `/run`, exit the chroot, copy configu
 Be sure to have the EFI partition mounted.
 
 ## Credits
-* [@AndrewAmmerlaan](https://github.com/AndrewAmmerlaan) for very helpful feedback.
+* [@Nowa-Ammerlaan](https://github.com/Nowa-Ammerlaan) for very helpful feedback.
 * [Excello](https://www.excello.cz/en/) for letting me contribute during working hours.
