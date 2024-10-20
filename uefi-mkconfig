@@ -380,9 +380,9 @@ main () {
 		local IFS=$'\n'
 		for kernel_config in ${kernel_configs}; do
 			
-			entry_label="${kernel_config/\ \;\ *}"
+			entry_label="${kernel_config/\ \;*}"
 			entry_label="${entry_label/\ }"
-			kernel_commands=" ${kernel_config/*\ \;\ }"
+			kernel_commands="${kernel_config/*\ \;}"
 
 			# If bootnum is empty, set it to max ID 0200
 			if [[ -z $bootnum ]]; then
