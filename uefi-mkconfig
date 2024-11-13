@@ -230,8 +230,8 @@ $kernel_configs_wip"
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-	lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTLABEL,UUID | grep "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" | sed "s/ * /;/g")"
-	mounted_efi_partitions="$(printf "%s\n" $lsblk_initial_state | grep "/")"
+	lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTLABEL,UUID | grep "$efi_parttype" | sed "s/ * /;/g")"
+	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "/")"
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	kernel_configs=
@@ -243,11 +243,8 @@ main () {
 
 	if [[ ${EUID} -ne 0 ]]; then
 		die "Please run uefi-mkconfig as root!"
-
-	#elif [[ -z $(mount | grep "/run ") ]]; then
-	#	die "Cannot access /run. If you are inside of chroot make sure it is properly mounted!"
-	#
-	elif [[ -z $(printf "%s\n" $mounted_efi_partitions | cut -d";" -f3) ]]; then
+	
+	elif [[ -z $(printf "%s\n" "$mounted_efi_partitions" | cut -d";" -f3) ]]; then
 		die "lsblk can't see PARTTYPE!"
 
 	elif [[ -z ${mounted_efi_partitions} ]]; then
@@ -283,7 +280,7 @@ main () {
 	# Wipe all managed entries for regeneration
 	wipe_entries
 
-	partition_mounts="$(printf "%s\n" $mounted_efi_partitions | cut -d";" -f2)"
+	partition_mounts="$(printf "%s\n" "$mounted_efi_partitions" | cut -d";" -f2)"
 
 	local kernel_images_new=
 	local kernel_images_old=
@@ -325,7 +322,7 @@ main () {
 			# Get partition mount
 			partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
 			# Get partition
-			partition=$(printf "%s\n" $mounted_efi_partitions | grep "$partition_mount;" | cut -d";" -f1)
+			partition=$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition_mount;" | cut -d";" -f1)
 			
 			ewarn "Ignoring \"$efi_file\" on \"$partition\""
 			# Remove ignored efi files from the list
@@ -346,12 +343,12 @@ main () {
 		partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
 
 		# Get partition
-		partition=$(printf "%s\n" $mounted_efi_partitions | grep "$partition_mount;" | cut -d";" -f1)
+		partition=$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition_mount;" | cut -d";" -f1)
 
 		# Get partition label
-		partition_label="$(printf "%s\n" $mounted_efi_partitions | grep "$partition" | cut -d";" -f4)"
+		partition_label="$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition" | cut -d";" -f4)"
 		## In case PARTLABEL isn't set, use UUID
-		[[ -z "$partition_label" ]] && partition_label="$(printf "%s\n" $mounted_efi_partitions | grep "$partition" | cut -d";" -f5)"
+		[[ -z "$partition_label" ]] && partition_label="$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition" | cut -d";" -f5)"
 
 		# Prepare path which will be inserted into efibootmgr
 		efi_file_path="${efi_file//$partition_mount}"
