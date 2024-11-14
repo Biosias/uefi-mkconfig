@@ -98,14 +98,14 @@ add_uefi_entry () {
 	if [[ -n $backup_efi ]]; then
 		# When creating backup entry, don't add it to the bootorder
 		if [[ $UMC_TEST == true ]]; then
-			echo "TEST: efibootmgr -q --create-only -b $bootnum --disk /dev/$partition --part $partition_id --label $entry_label --loader ${efi_file_path//\//\\} -u $adding_kernel_commands"
+			echo "TEST: efibootmgr -q --create-only -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_file_path//\//\\}\" -u \"$adding_kernel_commands\""
 		else
 			efibootmgr -q --create-only -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
 			-u "$adding_kernel_commands" || die "Failed to add BACKUP UEFI entry for \"$efi_file_path\""
 		fi
 	else
 		if [[ $UMC_TEST == true ]]; then
-			echo "TEST: efibootmgr -q --create -b $bootnum --disk /dev/$partition --part $partition_id --label $entry_label --loader ${efi_file_path//\//\\} -u $adding_kernel_commands"
+			echo "TEST: efibootmgr -q --create -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_file_path//\//\\}\" -u \"$adding_kernel_commands\""
 		else
 			efibootmgr -q --create -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
 			-u "$adding_kernel_commands" || die "Failed to add UEFI entry for \"$efi_file_path\""
@@ -123,7 +123,7 @@ clean_legacy_entries () {
 		for entry in ${entries}; do
 			if [[ "$(printf %d "0x${entry:4:4}" 2> /dev/null)" -gt 255 ]] && [[ "$(printf %d "0x${entry:4:4}" 2> /dev/null)" -lt 513 ]]; then
 				if [[ $UMC_TEST == true ]]; then
-					echo "TEST: efibootmgr -q -B -b ${entry:4:4}"
+					echo "TEST: efibootmgr -q -B -b \"${entry:4:4}\""
 				else
 					efibootmgr -q -B -b "${entry:4:4}"
 				fi
@@ -143,7 +143,7 @@ wipe_entries () {
 	local IFS=$'\n'
 	for delete_entry in $initial_uefi_umc_state; do
 		if [[ $UMC_TEST == true ]]; then
-			echo "TEST: efibootmgr -q -B -b ${delete_entry:4:4}"
+			echo "TEST: efibootmgr -q -B -b \"${delete_entry:4:4}\""
 		else
 			efibootmgr -q -B -b "${delete_entry:4:4}"
 		fi
@@ -230,7 +230,11 @@ $kernel_configs_wip"
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-	lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTLABEL,UUID | grep "$efi_parttype" | sed "s/ * /;/g")"
+	if [[ $UMC_TEST == true ]]; then
+		lsblk_initial_state="$(cat "$UMC_TEST_LSBLK" | sed "s/ * /;/g")"
+	else
+		lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTLABEL,UUID | grep "$efi_parttype" | sed "s/ * /;/g")"
+	fi
 	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "/")"
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
@@ -272,7 +276,12 @@ main () {
 	fi
 
 	# Get initial state of UEFI entries
-	initial_uefi_state="$(efibootmgr -u)"
+	
+	if [[ $UMC_TEST == "true" ]]; then
+		initial_uefi_state="$(cat "$UMC_TEST_EFIBOOTMGR")"
+	else
+		initial_uefi_state="$(efibootmgr -u)"
+	fi
 
 	# Remove pre 2.0 legacy entries
 	clean_legacy_entries
@@ -352,7 +361,6 @@ main () {
 
 		# Prepare path which will be inserted into efibootmgr
 		efi_file_path="${efi_file//$partition_mount}"
-
 		# Get kernel version
 		## Remove everything before /
 		kernel_version="${efi_file_path//*\//}"
@@ -380,9 +388,11 @@ main () {
 		fi
 
 		# Add efi entry for efi file
-
 		local IFS=$'\n'
 		for kernel_config in ${kernel_configs}; do
+			
+			# Make sure efi_file_path is correct for every iteration
+			efi_file_path="${efi_file//$partition_mount}"
 			
 			entry_label="${kernel_config/\ \;*}"
 			entry_label="${entry_label/\ }"
