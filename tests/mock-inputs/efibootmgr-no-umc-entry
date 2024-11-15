@@ -1,0 +1,4 @@
+BootCurrent: 0200
+Timeout: 1 seconds
+BootOrder: 0200,0201
+Boot0201* UEFI OS       HD(1,GPT,aa072e5b-c213-452f-831d-3d12c46f3c3d,0x800,0x200000)/\EFI\BOOT\BOOTX64.EFI
