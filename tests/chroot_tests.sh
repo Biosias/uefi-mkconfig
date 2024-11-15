@@ -3,7 +3,7 @@
 chroot_create () {
 	echo "Creating chroot environment in $TEMP_DIR"
 
-	setup_dirs="bin etc/default tests dev usr/bin usr/sbin usr/lib64 lib lib64 boot1/EFI/Gentoo boot2/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"
+	setup_dirs="bin etc/default tests dev usr/bin usr/sbin log usr/lib64 lib lib64 boot1/EFI/Gentoo boot2/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"
 	
 	for dir in $setup_dirs; do
 		mkdir -p "$TEMP_DIR/$dir"
@@ -20,6 +20,7 @@ chroot_create () {
 
 	mount --bind -o ro "$MY_LOCATION/../uefi-mkconfig" "$TEMP_DIR/uefi-mkconfig"
 	mount --bind -o ro "$MY_LOCATION/../tests" "$TEMP_DIR/tests"
+	mount --bind "$MY_LOCATION/../tests/log" "$TEMP_DIR/log"
 	mount --bind "/dev/null" "$TEMP_DIR/dev/null"
 
 	touch "$TEMP_DIR/inside-umc-test-chroot"
@@ -28,7 +29,7 @@ chroot_create () {
 chroot_destroy () {
 	echo "Destroying chroot environment in $TEMP_DIR"
 
-	mount_dirs="bin lib lib64 usr/lib64 usr/sbin tests uefi-mkconfig dev/null usr/bin"
+	mount_dirs="bin lib lib64 usr/lib64 usr/sbin tests uefi-mkconfig log dev/null usr/bin"
 
 	for dir in $mount_dirs; do
 		umount "$TEMP_DIR/$dir"

@@ -19,7 +19,7 @@ simulate-run (){
 	/bin/bash /uefi-mkconfig &> /out
 
 	if [[ "$(sha256sum /out | cut -d" " -f1)" == "$(sha256sum $expected_output_file | cut -d" " -f1)" ]]; then
-		echo "Success"
+		echo "Passed"
 	else
 		echo "Fail"
 		diff -c "/out" "$expected_output_file"
@@ -68,11 +68,10 @@ test-first-run (){
 	clean-test
 }
 
-test-2-alternative-entries (){
-	# Test running uefi-mkconfig without config file
-	echo "Testing alternative entries:"	
+test-standard-run (){
+	echo "Testing standard uefi-mkconfig run:"	
 
-	expected_output_file="/tests/expected-out/test-2-alternative-entries.expected"
+	expected_output_file="/tests/expected-out/test-standard-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
@@ -91,16 +90,33 @@ test-2-alternative-entries (){
 	clean-test
 }
 
-#test-shim-entries
+test-legacy-config-run (){
+	echo "Testing running uefi-mkconfig with legacy config format:"	
+
+	expected_output_file="/tests/expected-out/test-legacy-config-run.expected"
+
+	export UMC_TEST="true"
+	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
+	export UMC_TEST_EFIBOOTMGR="/tests/mock-inputs/efibootmgr-no-umc-entry"
+
+	mock-efi-files
+
+	# Insert line to configuration file for alternative entry
+	echo 'root=/dev/sda1 test=test"' >> /etc/default/uefi-mkconfig
+
+	simulate-run
+
+	clean-test
+}
 
 if [[ -f /inside-umc-test-chroot ]]; then
 
 	test-first-run
 
-	test-2-alternative-entries
+	test-standard-run
+
+	test-legacy-config-run
 
 else
-
 	echo "Not in test chroot, stopping"
-
 fi
