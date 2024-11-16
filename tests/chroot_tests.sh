@@ -43,7 +43,7 @@ TEMP_DIR="$(mktemp -d)"
 
 chroot_create
 
-chroot "$TEMP_DIR" /bin/bash /tests/run_tests.sh
-#chroot "$TEMP_DIR" /bin/bash
+#chroot "$TEMP_DIR" /bin/bash /tests/run_tests.sh
+chroot "$TEMP_DIR" /bin/bash
 
 chroot_destroy

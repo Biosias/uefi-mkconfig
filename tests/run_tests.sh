@@ -102,7 +102,32 @@ test-legacy-config-run (){
 	mock-efi-files
 
 	# Insert line to configuration file for alternative entry
-	echo 'root=/dev/sda1 test=test"' >> /etc/default/uefi-mkconfig
+	echo 'root=/dev/sda1 test=test' >> /etc/default/uefi-mkconfig
+
+	simulate-run
+
+	clean-test
+}
+
+test-latest-only-run (){
+	echo "Testing standard uefi-mkconfig run:"	
+
+	expected_output_file="/tests/expected-out/test-latest-only-run.expected"
+
+	export UMC_TEST="true"
+	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
+	export UMC_TEST_EFIBOOTMGR="/tests/mock-inputs/efibootmgr-no-umc-entry"
+
+	mock-efi-files
+
+	# Run it once before test run to generate default uefi-mkconfig configuration file
+	/bin/bash /uefi-mkconfig &> /dev/null
+
+	# Insert line to configuration file for alternative entry
+	echo 'KERNEL_CONFIG="%entry_id %linux_name Linux 2 %kernel_version ; "' >> /etc/default/uefi-mkconfig
+
+	# Turn on Latest Only in the config
+	sed -i "s/# ONLY_LATEST=false/ONLY_LATEST=true/" /etc/default/uefi-mkconfig
 
 	simulate-run
 
@@ -116,6 +141,8 @@ if [[ -f /inside-umc-test-chroot ]]; then
 	test-standard-run
 
 	test-legacy-config-run
+
+	test-latest-only-run
 
 else
 	echo "Not in test chroot, stopping"
