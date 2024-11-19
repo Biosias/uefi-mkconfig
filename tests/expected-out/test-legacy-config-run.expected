@@ -2,19 +2,25 @@
  [1;32m*[0m Running uefi-mkconfig...
  [1;33m*[0m Using legacy uefi-mkconfig configuration file format!
  [1;32m*[0m Using kernel commands from "/etc/default/uefi-mkconfig"
- [1;32m*[0m Creating UEFI entry "0200" for "/boot1/EFI/Gentoo/vmlinuz-6.9.7-gentoo-dist.efi" found on "nvme0n1p1"
+ [1;32m*[0m Creating UEFI entry "0200" for "/boot2/EFI/Gentoo/vmlinuz-6.11.2-gentoo-dist-old.efi" found on "nvme0n1p2"
+ [1;33m*[0m No initramfs found for "/boot2/EFI/Gentoo/vmlinuz-6.11.2-gentoo-dist-old.efi".
+TEST: efibootmgr -q --create -b "0200" --disk "/dev/nvme0n1p2" --part "2" --label "UMC 8  Linux 6.11.2" --loader "\EFI\Gentoo\vmlinuz-6.11.2-gentoo-dist-old.efi" -u " root=/dev/sda1 test=test"
+ [1;32m*[0m Creating UEFI entry "01FF" for "/boot1/EFI/Gentoo/vmlinuz-6.11.7-gentoo-dist-old.efi" found on "sda1"
+ [1;33m*[0m No initramfs found for "/boot1/EFI/Gentoo/vmlinuz-6.11.7-gentoo-dist-old.efi".
+TEST: efibootmgr -q --create -b "01FF" --disk "/dev/sda1" --part "1" --label "UMC 7  Linux 6.11.7" --loader "\EFI\Gentoo\vmlinuz-6.11.7-gentoo-dist-old.efi" -u " root=/dev/sda1 test=test"
+ [1;32m*[0m Creating UEFI entry "01FE" for "/boot1/EFI/Gentoo/vmlinuz-6.9.7-gentoo-dist.efi" found on "sda1"
  [1;33m*[0m No initramfs found for "/boot1/EFI/Gentoo/vmlinuz-6.9.7-gentoo-dist.efi".
-TEST: efibootmgr -q --create -b "0200" --disk "/dev/nvme0n1p1" --part "1" --label "UMC 6  Linux 6.9.7" --loader "\EFI\Gentoo\vmlinuz-6.9.7-gentoo-dist.efi" -u " root=/dev/sda1 test=test"
- [1;32m*[0m Creating UEFI entry "01FF" for "/boot2/EFI/Gentoo/vmlinuz-6.9.7-gentoo-dist.efi" found on "nvme0n1p2"
+TEST: efibootmgr -q --create -b "01FE" --disk "/dev/sda1" --part "1" --label "UMC 6  Linux 6.9.7" --loader "\EFI\Gentoo\vmlinuz-6.9.7-gentoo-dist.efi" -u " root=/dev/sda1 test=test"
+ [1;32m*[0m Creating UEFI entry "01FD" for "/boot2/EFI/Gentoo/vmlinuz-6.9.7-gentoo-dist.efi" found on "nvme0n1p2"
  [1;33m*[0m No initramfs found for "/boot2/EFI/Gentoo/vmlinuz-6.9.7-gentoo-dist.efi".
-TEST: efibootmgr -q --create -b "01FF" --disk "/dev/nvme0n1p2" --part "2" --label "UMC 5  Linux 6.9.7" --loader "\EFI\Gentoo\vmlinuz-6.9.7-gentoo-dist.efi" -u " root=/dev/sda1 test=test"
- [1;32m*[0m Creating UEFI entry "01FE" for "/boot1/EFI/Gentoo/vmlinuz-6.11.7-gentoo-dist.efi" found on "nvme0n1p1"
-TEST: efibootmgr -q --create -b "01FE" --disk "/dev/nvme0n1p1" --part "1" --label "UMC 4  Linux 6.11.7" --loader "\EFI\Gentoo\vmlinuz-6.11.7-gentoo-dist.efi" -u " root=/dev/sda1 test=test initrd=\EFI\Gentoo\initramfs-6.11.7-gentoo-dist.img"
- [1;32m*[0m Creating UEFI entry "01FD" for "/boot1/EFI/shimtest/vmlinuz-6.11.7-gentoo-dist.efi" using shim "/boot1/EFI/shimtest/shimx64.efi" found on "nvme0n1p1"
-TEST: efibootmgr -q --create -b "01FD" --disk "/dev/nvme0n1p1" --part "1" --label "UMC 3  Linux 6.11.7" --loader "\EFI\shimtest\shimx64.efi" -u "\EFI\shimtest\vmlinuz-6.11.7-gentoo-dist.efi  root=/dev/sda1 test=test initrd=\EFI\shimtest\initramfs-6.11.7-gentoo-dist.img"
- [1;32m*[0m Creating UEFI entry "01FC" for "/boot2/EFI/Gentoo/vmlinuz-6.11.7-gentoo-dist.efi" found on "nvme0n1p2"
-TEST: efibootmgr -q --create -b "01FC" --disk "/dev/nvme0n1p2" --part "2" --label "UMC 2  Linux 6.11.7" --loader "\EFI\Gentoo\vmlinuz-6.11.7-gentoo-dist.efi" -u " root=/dev/sda1 test=test initrd=\EFI\Gentoo\initramfs-6.11.7-gentoo-dist.img"
- [1;32m*[0m Creating UEFI entry "01FB" for "/boot2/EFI/shimtest/vmlinuz-6.11.7-gentoo-dist.efi" using shim "/boot2/EFI/shimtest/shimx64.efi" found on "nvme0n1p2"
+TEST: efibootmgr -q --create -b "01FD" --disk "/dev/nvme0n1p2" --part "2" --label "UMC 5  Linux 6.9.7" --loader "\EFI\Gentoo\vmlinuz-6.9.7-gentoo-dist.efi" -u " root=/dev/sda1 test=test"
+ [1;32m*[0m Creating UEFI entry "01FC" for "/boot1/EFI/Gentoo/vmlinuz-6.11.7-gentoo-dist.efi" found on "sda1"
+TEST: efibootmgr -q --create -b "01FC" --disk "/dev/sda1" --part "1" --label "UMC 4  Linux 6.11.7" --loader "\EFI\Gentoo\vmlinuz-6.11.7-gentoo-dist.efi" -u " root=/dev/sda1 test=test initrd=\EFI\Gentoo\initramfs-6.11.7-gentoo-dist.img"
+ [1;32m*[0m Creating UEFI entry "01FB" for "/boot1/EFI/shimtest/vmlinuz-6.11.7-gentoo-dist.efi" using shim "/boot1/EFI/shimtest/shimx64.efi" found on "sda1"
+TEST: efibootmgr -q --create -b "01FB" --disk "/dev/sda1" --part "1" --label "UMC 3  Linux 6.11.7" --loader "\EFI\shimtest\shimx64.efi" -u "\EFI\shimtest\vmlinuz-6.11.7-gentoo-dist.efi  root=/dev/sda1 test=test initrd=\EFI\shimtest\initramfs-6.11.7-gentoo-dist.img"
+ [1;32m*[0m Creating UEFI entry "01FA" for "/boot2/EFI/Gentoo/vmlinuz-6.11.7-gentoo-dist.efi" found on "nvme0n1p2"
+TEST: efibootmgr -q --create -b "01FA" --disk "/dev/nvme0n1p2" --part "2" --label "UMC 2  Linux 6.11.7" --loader "\EFI\Gentoo\vmlinuz-6.11.7-gentoo-dist.efi" -u " root=/dev/sda1 test=test initrd=\EFI\Gentoo\initramfs-6.11.7-gentoo-dist.img"
+ [1;32m*[0m Creating UEFI entry "01F9" for "/boot2/EFI/shimtest/vmlinuz-6.11.7-gentoo-dist.efi" using shim "/boot2/EFI/shimtest/shimx64.efi" found on "nvme0n1p2"
  [1;33m*[0m No initramfs found for "/boot2/EFI/shimtest/shimx64.efi".
-TEST: efibootmgr -q --create -b "01FB" --disk "/dev/nvme0n1p2" --part "2" --label "UMC 1  Linux 6.11.7" --loader "\EFI\shimtest\shimx64.efi" -u "\EFI\shimtest\vmlinuz-6.11.7-gentoo-dist.efi  root=/dev/sda1 test=test"
+TEST: efibootmgr -q --create -b "01F9" --disk "/dev/nvme0n1p2" --part "2" --label "UMC 1  Linux 6.11.7" --loader "\EFI\shimtest\shimx64.efi" -u "\EFI\shimtest\vmlinuz-6.11.7-gentoo-dist.efi  root=/dev/sda1 test=test"
  [1;32m*[0m Done

@@ -1,2 +1,2 @@
-nvme0n1p1                                 /boot1           c12a7328-f81f-11d2-ba4b-00a0c93ec93b boot1 53DA-DE12
-nvme0n1p2                                 /boot2           c12a7328-f81f-11d2-ba4b-00a0c93ec93b       4813-F852
+sda1                                      /boot1           c12a7328-f81f-11d2-ba4b-00a0c93ec93b  1 53DA-DE12   boot1
+nvme0n1p2                                 /boot2           c12a7328-f81f-11d2-ba4b-00a0c93ec93b  2 4813-F852

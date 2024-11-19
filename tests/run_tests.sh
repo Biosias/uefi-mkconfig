@@ -49,6 +49,12 @@ mock-efi-files (){
 
 	touch /boot2/EFI/shimtest/vmlinuz-6.11.7-gentoo-dist.efi
 	touch /boot2/EFI/shimtest/shimx64.efi
+	
+	# Testing -old kernels
+	touch /boot1/EFI/Gentoo/vmlinuz-6.11.7-gentoo-dist-old.efi
+	
+	touch /boot2/EFI/Gentoo/vmlinuz-6.11.2-gentoo-dist-old.efi
+	touch /boot2/EFI/Gentoo/initramfs-6.11.2-gentoo-dist-old.img
 }
 
 test-first-run (){
@@ -58,6 +64,7 @@ test-first-run (){
 	expected_output_file="/tests/expected-out/test-first-run.expected"
 
 	export UMC_TEST="true"
+	export UMC_MOCK="true"
 	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
 	export UMC_TEST_EFIBOOTMGR="/tests/mock-inputs/efibootmgr-no-umc-entry"
 
@@ -74,6 +81,7 @@ test-standard-run (){
 	expected_output_file="/tests/expected-out/test-standard-run.expected"
 
 	export UMC_TEST="true"
+	export UMC_MOCK="true"
 	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
 	export UMC_TEST_EFIBOOTMGR="/tests/mock-inputs/efibootmgr-no-umc-entry"
 
@@ -96,6 +104,7 @@ test-legacy-config-run (){
 	expected_output_file="/tests/expected-out/test-legacy-config-run.expected"
 
 	export UMC_TEST="true"
+	export UMC_MOCK="true"
 	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
 	export UMC_TEST_EFIBOOTMGR="/tests/mock-inputs/efibootmgr-no-umc-entry"
 
@@ -115,6 +124,7 @@ test-latest-only-run (){
 	expected_output_file="/tests/expected-out/test-latest-only-run.expected"
 
 	export UMC_TEST="true"
+	export UMC_MOCK="true"
 	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
 	export UMC_TEST_EFIBOOTMGR="/tests/mock-inputs/efibootmgr-no-umc-entry"
 
