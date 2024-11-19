@@ -92,7 +92,7 @@ add_uefi_entry () {
 	fi
 
 	#Get partition ID
-        partition_id="${partition//*p}"
+	partition_id="$(printf "%s\n" "$lsblk_initial_state" | grep "$partition" | cut -d";" -f4)"
 
 	# Add new entry
 	if [[ -n $backup_efi ]]; then
@@ -235,14 +235,14 @@ main () {
 	if [[ $UMC_TEST == true ]]; then
 		lsblk_initial_state="$(sed "s/ * /;/g" "$UMC_TEST_LSBLK")"
 	else
-		lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTLABEL,UUID | grep "$efi_parttype" | sed "s/ * /;/g")"
+		lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTN,UUID,PARTLABEL | grep "$efi_parttype" | sed "s/ * /;/g")"
 	fi
 	
 	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "/")"
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	kernel_configs=
-
+	echo "THISTHISTHIS: $lsblk_initial_state"
 	# Entry label limit is on by default
 	ENTRY_LABEL_LIMIT=1
 
@@ -358,7 +358,7 @@ main () {
 		partition=$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition_mount;" | cut -d";" -f1)
 
 		# Get partition label
-		partition_label="$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition" | cut -d";" -f4)"
+		partition_label="$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition" | cut -d";" -f6)"
 		## In case PARTLABEL isn't set, use UUID
 		[[ -z "$partition_label" ]] && partition_label="$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition" | cut -d";" -f5)"
 
