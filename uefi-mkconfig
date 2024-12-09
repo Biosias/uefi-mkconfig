@@ -186,6 +186,9 @@ KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; "
 # Turn on to only add efi files of the latest kernel version
 # ONLY_LATEST=false
 
+# Revers order in which entries are added
+# REVERS_ORDER=false
+
 # Entry label length limit of 60 characters for better compatibility with UEFI Firmware
 # Can be disabled but thorough testing is recommended before using entry labels longer than 60 characters 
 # ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
@@ -197,6 +200,9 @@ KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; "
 
 		# Check if entry label limit is turned off
 		[[ -n $(grep "ENTRY_LABEL_LIMIT=false" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ENTRY_LABEL_LIMIT=0
+		
+		# Check if entries should be added in the revers order
+		[[ -n $(grep "REVERS_ORDER=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && REVERS_ORDER=1
 	fi
 
 	local IFS=$'\n'
@@ -345,8 +351,22 @@ main () {
 
 	done
 
-	# Get number of entries that will be created to be used as unique entry id
-	entry_id=$(($(wc -w <<< "$partition_efis") * ($(wc -l <<< "$kernel_configs")-1)))
+	if [[ -n "$REVERS_ORDER" ]]; then
+		local revers_entries
+		revers_entries=
+
+		# Revers order in which the entries will be added
+		for rev_entry in $partition_efis; do
+			revers_entries="$rev_entry $revers_entries"
+		done
+
+		partition_efis="$revers_entries"
+
+		entry_id=1
+	else
+		# Get number of entries that will be created to be used as unique entry id
+		entry_id=$(($(wc -w <<< "$partition_efis") * ($(wc -l <<< "$kernel_configs")-1)))
+	fi
 
 	for efi_file in $partition_efis; do
 
@@ -419,7 +439,12 @@ main () {
 			bootnum="$(printf %04X $bootnum)"
 
 			add_uefi_entry
-			entry_id=$((entry_id-1))
+
+			if [[ -n $REVERS_ORDER ]]; then
+				entry_id=$((entry_id+1))
+			else
+				entry_id=$((entry_id-1))
+			fi
 		done
 
 	done

@@ -183,6 +183,11 @@ If this happens, make sure that `/run` is mounted correctly into the chroot.
 If the problem persits even after mounting `/run`, exit the chroot, copy configuration from rootfs of the system being installed to the mount point of the LiveCD and run uefi-mkconfig again outside of the chroot.
 Be sure to have the EFI partition mounted.
 
+### 2. UEFI Firmware boots entry in descending order of entry IDs
+Some UEFI Firmawere were shown to behave like this. uefi-mkconfig by default adds the newest kernel last since default behaviour of efibootmgr is to set last added option as next to boot.
+This approach will not work if this problem exists so option "REVERS_ORDER" was added as a option to the config file. If set to true, uefi-mkconfig will add newest kernels first.
+This should mitigate this issue.
+
 ## Credits
 * [@Nowa-Ammerlaan](https://github.com/Nowa-Ammerlaan) for very helpful feedback.
 * [Excello](https://www.excello.cz/en/) for letting me contribute during working hours.
