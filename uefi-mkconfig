@@ -31,7 +31,7 @@ add_uefi_entry () {
 		entry_label="UMC $entry_label"
 	fi
 
-	[[ $ENTRY_LABEL_LIMIT == 1 ]] && (( $(wc -c <<< "${entry_label}") > 60 )) && die "Entry label length is over 60 characters! Creater shorter one or disable this check. "
+	[[ $ENTRY_LABEL_LIMIT == 1 ]] && (( $(wc -c <<< "${entry_label}") > 60 )) && die "Entry label length is over 60 characters! Create a shorter one or disable this check through the config file. "
 
 	# Create path to initramfs
 	local initramfs_image
@@ -94,22 +94,25 @@ add_uefi_entry () {
 	#Get partition ID
 	partition_id="$(printf "%s\n" "$lsblk_initial_state" | grep "$partition" | cut -d";" -f4)"
 
-	# Add new entry
+	# Prepare parameters for adding new entry
+	local opt_backup_efi
+	local msg_backup_efi
 	if [[ -n $backup_efi ]]; then
-		# When creating backup entry, don't add it to the bootorder
-		if [[ $UMC_TEST == true ]]; then
-			echo "TEST: efibootmgr -q --create-only -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_file_path//\//\\}\" -u \"$adding_kernel_commands\""
-		else
-			efibootmgr -q --create-only -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
-			-u "$adding_kernel_commands" || die "Failed to add BACKUP UEFI entry for \"$efi_file_path\""
-		fi
+		opt_backup_efi="--create-only"
+		msg_backup_efi="BACKUP "
 	else
-		if [[ $UMC_TEST == true ]]; then
-			echo "TEST: efibootmgr -q --create -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_file_path//\//\\}\" -u \"$adding_kernel_commands\""
-		else
-			efibootmgr -q --create -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}"\
-			-u "$adding_kernel_commands" || die "Failed to add UEFI entry for \"$efi_file_path\""
-		fi
+		opt_backup_efi="--create"
+	fi
+
+	if [[ -z $DISABLE_CMDLINE ]]; then
+		local opt_cmdline=('-u' "$adding_kernel_commands")
+	fi
+
+	# Add new entry
+	if [[ $UMC_TEST == true ]]; then
+		echo "TEST: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_file_path//\//\\}\" ${opt_cmdline[@]}"
+	else
+		efibootmgr -q $opt_backup_efi -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}" ${opt_cmdline[@]} || die "Failed to add UEFI ${msg_backup_efi}entry for \"$efi_file_path\""
 	fi
 }
 
@@ -179,30 +182,38 @@ load_config () {
 	if [[ -z ${kernel_configs} ]]; then
 		ewarn "No configuration found. Creating default one. Don't forget to configure kernel commandline"
 		
-		echo '# Add your kernel commandline arguments following "; "
+		echo '# Add your kernel commandline arguments following ";"
 # KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; example=test kernel=test cmdline=test arguments=test"
-KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; "
+KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ;"
 
 # Turn on to only add efi files of the latest kernel version
-# ONLY_LATEST=false
+ONLY_LATEST=false
 
-# Revers order in which entries are added
-# REVERS_ORDER=false
+# Turn on to reverse order in which entries are added
+REVERSE_ORDER=false
 
 # Entry label length limit of 60 characters for better compatibility with UEFI Firmware
-# Can be disabled but thorough testing is recommended before using entry labels longer than 60 characters 
-# ENTRY_LABEL_LIMIT=true' > "/etc/default/uefi-mkconfig"
+# Turn on to disable. Thorough testing is recommended before using entry labels longer than 60 characters 
+DISABLE_LABEL_LIMIT=false
 
-		kernel_configs="${default_label} ; "	
+# Turn on to not insert any kernel command line into the boot entry whatsoever
+# Allows kernel command line to be defined in another way without being overwritten
+# Anything written into the KERNEL_CONFIG after the ";" will be ignored
+DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
+
+		kernel_configs="${default_label} ;"
 	else
 		# Check if only the latest efi file should be added
 		[[ -n $(grep "ONLY_LATEST=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ONLY_LATEST=1
 
 		# Check if entry label limit is turned off
-		[[ -n $(grep "ENTRY_LABEL_LIMIT=false" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ENTRY_LABEL_LIMIT=0
+		[[ -n $(grep "ENTRY_LABEL_LIMIT=false\|DISABLE_LABEL_LIMIT=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ENTRY_LABEL_LIMIT=0
 		
-		# Check if entries should be added in the revers order
-		[[ -n $(grep "REVERS_ORDER=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && REVERS_ORDER=1
+		# Check if entries should be added in the reverse order
+		[[ -n $(grep "REVERS_ORDER=true\|REVERSE_ORDER=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && REVERSE_ORDER=1
+		
+		# Check if we should disable the kernel command line
+		[[ -n $(grep "DISABLE_CMDLINE=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && DISABLE_CMDLINE=1 && ewarn "Warning! DISABLE_CMDLINE option activated. All entries will be added into the firmware without a kernel command line. System will possibly be un-bootable unless they are configured elsewhere."
 	fi
 
 	local IFS=$'\n'
@@ -216,8 +227,8 @@ KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; "
 			# Verify if "root=" is present
 			[[ "$check_config" == "root="* ]] && valid_kernel_commands=1
 		done
-
-		[[ -z $valid_kernel_commands ]] && ewarn "Warning! Kernel command \"root=\" is missing from loaded configuration!"
+		
+		[[ -z $valid_kernel_commands && $DISABLE_CMDLINE -ne 1 ]] && ewarn "Warning! Kernel command \"root=\" is missing from loaded configuration!"
 		
 		[[ -z ${config} ]] && ewarn "Warning! Loaded empty uefi-mkconfig configuration!"
 	
@@ -351,16 +362,16 @@ main () {
 
 	done
 
-	if [[ -n "$REVERS_ORDER" ]]; then
-		local revers_entries
-		revers_entries=
+	if [[ -n "$REVERSE_ORDER" ]]; then
+		local reverse_entries
+		reverse_entries=
 
 		# Revers order in which the entries will be added
 		for rev_entry in $partition_efis; do
-			revers_entries="$rev_entry $revers_entries"
+			reverse_entries="$rev_entry $reverse_entries"
 		done
 
-		partition_efis="$revers_entries"
+		partition_efis="$reverse_entries"
 
 		entry_id=1
 	else
@@ -440,7 +451,7 @@ main () {
 
 			add_uefi_entry
 
-			if [[ -n $REVERS_ORDER ]]; then
+			if [[ -n $REVERSE_ORDER ]]; then
 				entry_id=$((entry_id+1))
 			else
 				entry_id=$((entry_id-1))
