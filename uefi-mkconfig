@@ -51,18 +51,10 @@ prepare_initramfs () {
 
 }
 
-add_uefi_entry () {
-
-	prepare_entry_label
-
-	prepare_initramfs
+prepare_shim () {
 	
-	# Strip .uefibackup from efi file path
-	[[ "$efi_file_path" == *".uefibackup" ]] && efi_file_path=${efi_file_path//.uefibackup/}
-
 	# If shim is present in directory, presume it's used for every kernel in said directory
 	local shim
-	local adding_kernel_commands
 	shim="$(find "$partition_mount""${efi_file_path/${efi_file_path##*/}/}" -maxdepth 1 -iname "*shim*.efi")"
 	if [[ -n "$shim" ]]; then
 		shim="${shim%%.efi*}.efi"
@@ -81,6 +73,19 @@ add_uefi_entry () {
 			einfo "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\""
 		fi
 	fi
+
+}
+
+add_uefi_entry () {
+
+	prepare_entry_label
+
+	prepare_initramfs
+	
+	# Strip .uefibackup from efi file path
+	[[ "$efi_file_path" == *".uefibackup" ]] && efi_file_path=${efi_file_path//.uefibackup/}
+
+	prepare_shim
 
 	# Check if microcode image exists
 	## microcode image can be ignored the same way as kernel image via .ignore suffix
@@ -460,6 +465,8 @@ main () {
 
 			# Convert chosen entry ID into hex
 			bootnum="$(printf %04X $bootnum)"
+			
+			adding_kernel_commands=
 
 			add_uefi_entry
 
