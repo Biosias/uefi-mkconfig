@@ -76,16 +76,7 @@ prepare_shim () {
 
 }
 
-add_uefi_entry () {
-
-	prepare_entry_label
-
-	prepare_initramfs
-	
-	# Strip .uefibackup from efi file path
-	[[ "$efi_file_path" == *".uefibackup" ]] && efi_file_path=${efi_file_path//.uefibackup/}
-
-	prepare_shim
+prepare_microcode () {
 
 	# Check if microcode image exists
 	## microcode image can be ignored the same way as kernel image via .ignore suffix
@@ -107,6 +98,21 @@ add_uefi_entry () {
 	else
 		ewarn "No initramfs found for \"$partition_mount$efi_file_path\"."
 	fi
+
+}
+
+add_uefi_entry () {
+
+	prepare_entry_label
+
+	prepare_initramfs
+	
+	# Strip .uefibackup from efi file path
+	[[ "$efi_file_path" == *".uefibackup" ]] && efi_file_path=${efi_file_path//.uefibackup/}
+
+	prepare_shim
+	
+	prepare_microcode
 
 	#Get partition ID
 	partition_id="$(printf "%s\n" "$lsblk_initial_state" | grep "$partition" | cut -d";" -f4)"
