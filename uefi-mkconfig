@@ -49,29 +49,30 @@ prepare_initramfs () {
 	# Add .old suffix to initramfs in case we are handling kernel with -old suffix
 	[[ "$efi_file_path" == *"-old."* ]] && initramfs_image="${initramfs_image/-old}.old"
 
+	if  [[ -f "$partition_mount$initramfs_image.ignore" ]]; then
+		# Ignore chosen initramfs image
+		ewarn "Ignoring initramfs image \"$partition_mount$initramfs_image\" of \"$partition_mount$efi_file_path\""
+	elif [[ -f "$partition_mount$initramfs_image" ]]; then
+		# Check if corresponding initramfs exists
+		entry_kernel_commands="${config_kernel_commands} initrd=${initramfs_image//\//\\}"
+	else
+		ewarn "No initramfs found for \"$partition_mount$efi_file_path\"."
+	fi
+
 }
 
 prepare_shim () {
 	
 	# If shim is present in directory, presume it's used for every kernel in said directory
-	local shim
+	using_shim=
 	shim="$(find "$partition_mount""${efi_file_path/${efi_file_path##*/}/}" -maxdepth 1 -iname "*shim*.efi")"
 	if [[ -n "$shim" ]]; then
 		shim="${shim%%.efi*}.efi"
-		adding_kernel_commands="${efi_file_path//\//\\} ${kernel_commands}"
-		if [[ -n $backup_efi ]]; then
-			einfo "Creating BACKUP UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" using shim \"$shim\" found on \"$partition\""
-		else
-			einfo "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" using shim \"$shim\" found on \"$partition\""
-		fi
-		efi_file_path="${efi_file_path/${efi_file_path##*/}/}${shim/*\//}"
-	else
-		adding_kernel_commands="${kernel_commands}"
-		if [[ -n $backup_efi ]]; then
-			einfo "Creating BACKUP UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\""
-		else
-			einfo "Creating UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" found on \"$partition\""
-		fi
+		entry_kernel_commands="${efi_file_path//\//\\} ${entry_kernel_commands}"
+		using_shim="using shim \"$shim\" "
+
+		# Set efibootmgr loader to shim from kernel efi file
+		efi_loader="${shim}"
 	fi
 
 }
@@ -83,26 +84,18 @@ prepare_microcode () {
 	local microcode_path
 	microcode_path="${efi_file_path/${efi_file_path##*/}}"
 	if [[ -f "${partition_mount}${microcode_path}amd-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}amd-uc.img.ignore" ]]; then
-		adding_kernel_commands="${adding_kernel_commands} initrd=${microcode_path//\//\\}amd-uc.img"
+		entry_kernel_commands="${entry_kernel_commands} initrd=${microcode_path//\//\\}amd-uc.img"
 	fi
 	if [[ -f "${partition_mount}${microcode_path}intel-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}intel-uc.img.ignore" ]]; then
-		adding_kernel_commands="${adding_kernel_commands} initrd=${microcode_path//\//\\}intel-uc.img"
-	fi
-
-	if  [[ -f "$partition_mount$initramfs_image.ignore" ]]; then
-	    # Ignore chosen initramfs image
-	    ewarn "Ignoring initramfs image \"$partition_mount$initramfs_image\" of \"$partition_mount$efi_file_path\""
-	elif [[ -f "$partition_mount$initramfs_image" ]]; then
-	    # Check if corresponding initramfs exists
-		adding_kernel_commands="${adding_kernel_commands} initrd=${initramfs_image//\//\\}"
-	else
-		ewarn "No initramfs found for \"$partition_mount$efi_file_path\"."
+		entry_kernel_commands="${entry_kernel_commands} initrd=${microcode_path//\//\\}intel-uc.img"
 	fi
 
 }
 
 add_uefi_entry () {
 
+	efi_loader="${efi_file_path//\//\\}"
+	
 	prepare_entry_label
 
 	prepare_initramfs
@@ -113,7 +106,10 @@ add_uefi_entry () {
 	prepare_shim
 	
 	prepare_microcode
-
+	
+	# Clean redundant spaces from the kernel commandline
+	entry_kernel_commands="$( echo $entry_kernel_commands | sed -E 's/\ +/ /g' | sed 's/ $//g' )"
+	
 	#Get partition ID
 	partition_id="$(printf "%s\n" "$lsblk_initial_state" | grep "$partition" | cut -d";" -f4)"
 
@@ -127,17 +123,33 @@ add_uefi_entry () {
 		opt_backup_efi="--create"
 	fi
 
-	if [[ -z $DISABLE_CMDLINE ]]; then
-		local opt_cmdline=('-u' "$adding_kernel_commands")
-	fi
+	einfo "Creating ${msg_backup_efi}UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" ${using_shim}found on \"$partition\""
 
 	# Add new entry
-	if [[ $UMC_TEST == true ]]; then
-		echo "TEST: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_file_path//\//\\}\" ${opt_cmdline[@]}"
+	if [[ -n $DISABLE_CMDLINE ]]; then
+		if [[ $UMC_TEST == true ]]; then
+			echo "TEST: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
+		else
+			efibootmgr -q $opt_backup_efi -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" || die "Failed to add UEFI ${msg_backup_efi}entry for \"$efi_file_path\""
+		fi
 	else
-		efibootmgr -q $opt_backup_efi -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_file_path//\//\\}" ${opt_cmdline[@]} || die "Failed to add UEFI ${msg_backup_efi}entry for \"$efi_file_path\""
+		if [[ $UMC_TEST == true ]]; then
+			echo "TEST: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
+		else
+			efibootmgr -q $opt_backup_efi -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" -u "$entry_kernel_commands" || die "Failed to add UEFI ${msg_backup_efi}entry for \"$efi_file_path\""
+		fi
 	fi
+
 }
+
+add_xen_uefi_entry () {
+
+	local xen_efi_path
+	xen_efi_path=$( sed s/$efi_file_name//g <<< $efi_file_path )
+	echo "$xen_efi_path"
+	echo "$efi_file_name"
+}
+
 
 clean_legacy_entries () {
 	# Run only if no post 2.0 entries exist
@@ -410,6 +422,9 @@ main () {
 		# Get partition
 		partition=$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition_mount;" | cut -d";" -f1)
 
+		# Get efi file name
+		efi_file_name="$( echo "$efi_file" | sed "s/.*\///g" )"
+
 		# Get partition label
 		partition_label="$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition" | cut -d";" -f6)"
 		## In case PARTLABEL isn't set, use UUID
@@ -418,11 +433,11 @@ main () {
 		# Prepare path which will be inserted into efibootmgr
 		efi_file_path="${efi_file//$partition_mount}"
 		# Get kernel version
-		## Remove everything before /
-		kernel_version="${efi_file_path//*\//}"
+		kernel_version=
+
 		## Remove everything before first - to remove any prefixes
-		if [[ "$kernel_version" == *"-"* ]]; then
-			kernel_version="${kernel_version/${kernel_version%%-*}-/}"
+		if [[ "$efi_file_name" == *"-"* ]]; then
+			kernel_version="${efi_file_name/${efi_file_name%%-*}-/}"
 		else
 			# Disable kernel_version variable if the kernel efi file is versionless
 			kernel_version=
@@ -452,7 +467,7 @@ main () {
 			
 			entry_label="${kernel_config/\ \;*}"
 			entry_label="${entry_label/\ }"
-			kernel_commands="${kernel_config/*\ \;}"
+			config_kernel_commands="${kernel_config/*\ \;}"
 
 			# If bootnum is empty, set it to max ID 0200
 			if [[ -z $bootnum ]]; then
@@ -472,9 +487,15 @@ main () {
 			# Convert chosen entry ID into hex
 			bootnum="$(printf %04X $bootnum)"
 			
-			adding_kernel_commands=
+			entry_kernel_commands=""
+			
+			XEN=
 
-			add_uefi_entry
+			if [[ -n $XEN ]]; then
+				add_xen_uefi_entry
+			else
+				add_uefi_entry
+			fi
 
 			if [[ -n $REVERSE_ORDER ]]; then
 				entry_id=$((entry_id+1))
