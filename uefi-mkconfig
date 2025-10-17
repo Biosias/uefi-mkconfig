@@ -15,15 +15,17 @@ ewarn() {
 }
 
 prepare_entry_label () {
-	
-	# Substitute %values in entry labels 
+
+	# Substitute %values in entry labels
 	entry_label="${entry_label/\%efi_file_path/${efi_file_path/.uefibackup}}"
 	entry_label="${entry_label/\%partition_label/$partition_label}"
 	entry_label="${entry_label/\%kernel_version/${kernel_version/-*}}"
 	entry_label="${entry_label/\%linux_name/$NAME}"
 	entry_label="${entry_label/\%entry_id/$entry_id}"
 	entry_label="${entry_label/\%partition/$partition}"
-	
+
+	[[ -n $XEN ]] && entry_label="Xen with $entry_label"
+
 	# Add prefix to entry label for easier identification
 	if [[ -n $backup_efi ]]; then
 		entry_label="UMCB $entry_label"
@@ -32,11 +34,11 @@ prepare_entry_label () {
 	fi
 
 	[[ $ENTRY_LABEL_LIMIT == 1 ]] && (( $(wc -c <<< "${entry_label}") > 60 )) && die "Entry label length is over 60 characters! Create a shorter one or disable this check through the config file. "
-	
+
 }
 
 prepare_initramfs () {
-		
+
 	# Create path to initramfs
 	initramfs_image=
 	if [[ -z $kernel_version ]]; then
@@ -45,7 +47,7 @@ prepare_initramfs () {
 	else
 		initramfs_image="${efi_file_path/${efi_file_path##*/}}initramfs-$kernel_version.img"
 	fi
-	
+
 	# Add .old suffix to initramfs in case we are handling kernel with -old suffix
 	[[ "$efi_file_path" == *"-old."* ]] && initramfs_image="${initramfs_image/-old}.old"
 
@@ -62,7 +64,7 @@ prepare_initramfs () {
 }
 
 prepare_shim () {
-	
+
 	# If shim is present in directory, presume it's used for every kernel in said directory
 	using_shim=
 	shim="$(find "$partition_mount""${efi_file_path/${efi_file_path##*/}/}" -maxdepth 1 -iname "*shim*.efi")"
@@ -82,12 +84,21 @@ prepare_microcode () {
 	# Check if microcode image exists
 	## microcode image can be ignored the same way as kernel image via .ignore suffix
 	local microcode_path
+	microcode=
 	microcode_path="${efi_file_path/${efi_file_path##*/}}"
 	if [[ -f "${partition_mount}${microcode_path}amd-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}amd-uc.img.ignore" ]]; then
-		entry_kernel_commands="${entry_kernel_commands} initrd=${microcode_path//\//\\}amd-uc.img"
+		if [[ -z $XEN ]]; then
+			entry_kernel_commands="${entry_kernel_commands} initrd=${microcode_path//\//\\}amd-uc.img"
+		else
+			microcode="amd-uc.img"
+		fi
 	fi
 	if [[ -f "${partition_mount}${microcode_path}intel-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}intel-uc.img.ignore" ]]; then
-		entry_kernel_commands="${entry_kernel_commands} initrd=${microcode_path//\//\\}intel-uc.img"
+		if [[ -z $XEN ]]; then
+			entry_kernel_commands="${entry_kernel_commands} initrd=${microcode_path//\//\\}intel-uc.img"
+		else
+			microcode="intel-uc.img"
+		fi
 	fi
 
 }
@@ -95,33 +106,20 @@ prepare_microcode () {
 add_uefi_entry () {
 
 	efi_loader="${efi_file_path//\//\\}"
-	
+
 	prepare_entry_label
 
 	prepare_initramfs
-	
+
 	# Strip .uefibackup from efi file path
 	[[ "$efi_file_path" == *".uefibackup" ]] && efi_file_path=${efi_file_path//.uefibackup/}
 
 	prepare_shim
-	
+
 	prepare_microcode
-	
+
 	# Clean redundant spaces from the kernel commandline
 	entry_kernel_commands="$( echo $entry_kernel_commands | sed -E 's/\ +/ /g' | sed 's/ $//g' )"
-	
-	#Get partition ID
-	partition_id="$(printf "%s\n" "$lsblk_initial_state" | grep "$partition" | cut -d";" -f4)"
-
-	# Prepare parameters for adding new entry
-	local opt_backup_efi
-	local msg_backup_efi
-	if [[ -n $backup_efi ]]; then
-		opt_backup_efi="--create-only"
-		msg_backup_efi="BACKUP "
-	else
-		opt_backup_efi="--create"
-	fi
 
 	einfo "Creating ${msg_backup_efi}UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" ${using_shim}found on \"$partition\""
 
@@ -145,37 +143,56 @@ add_uefi_entry () {
 add_xen_uefi_entry () {
 
 	local xen_efi_path
-	local xen_efi_files
-	local xen_config_files
-	
-	xen_efi_path=$( sed s/$efi_file_name//g <<< $efi_file_path )
-	xen_efi_files=$( ls -w1 ${partition_mount}${xen_efi_path} | grep "xen" | grep ".efi" )
-	xen_config_files=$( ls -w1 ${partition_mount}${xen_efi_path} | grep "xen" | grep ".cfg" )
-		
+	local xen_efi_file
+
+	# Get path where the Xen efi resides
+	xen_efi_path=$( echo "$efi_file_path" | sed s/$efi_file_name//g )
+
+	# Find Xen efi files in the same directory as this kernel image
+	xen_efi_file="$( tree --matchdirs -ixvP *xen*.efi ${partition_mount}${xen_efi_path} | grep .efi | head -n1 )"
+
+	prepare_entry_label
+
 	prepare_initramfs
 
 	# Strip .uefibackup from efi file path
 	[[ "$efi_file_path" == *".uefibackup" ]] && efi_file_path=${efi_file_path//.uefibackup/}
 
 	prepare_shim
-	
+
 	prepare_microcode
-	
+
+	# Clear kernel command line if it is disabled
+	[[ -n $DISABLE_CMDLINE ]] && entry_kernel_commands=
+
 	# Generate config which is loaded by Xen.efi
-	echo "global]
+	local xen_config_file
+	xen_config_file="umc-xen-$( echo ${efi_file_path} | sed "s/.*\///g").cfg"
+
+	echo "[global]
 default=$NAME
 
 [$NAME]
 options=${xen_options}
 kernel=$( echo ${efi_file_path} | sed "s/.*\///g")${entry_kernel_commands}
-ramdisk=$( echo ${initramfs_image} | sed "s/.*\///g")"
+ramdisk=$( echo ${initramfs_image} | sed "s/.*\///g")i
+ucode=${microcode}"
 
+	# Prepare xen efi as efi loader
+	efi_loader="$( echo "${xen_efi_path}${xen_efi_file}" | sed 's/\//\\/g' )"
+
+	echo "efibootmgr -q ${opt_backup_efi} -b "${bootnum}" --disk /dev/"${partition}" --part "${partition_id}" --label "${entry_label}" --loader "${efi_loader}" -u "cfg=${xen_config_file}""
 	#efibootmgr -q ${opt_backup_efi} -b "${bootnum}" --disk /dev/"${partition}" --part "${partition_id}" --label "${entry_label}" --loader "${efi_loader}" -u ${xen_config_file}
 }
 
-#wipe_xen_configs () {
-#
-#}
+wipe_xen_configs () {
+
+	local xen_efi_path
+
+	# Get path where the Xen efi resides
+	xen_efi_path=$( echo "$efi_file_path" | sed s/$efi_file_name//g )
+
+}
 
 clean_legacy_entries () {
 	# Run only if no post 2.0 entries exist
@@ -220,7 +237,7 @@ load_config () {
 	local kernel_config_path
 	local kernel_configs_wip
 	local config
-	
+
 	kernel_config_paths="/etc/default /etc/kernel /usr/lib/kernel"
 	[[ -n "${INSTALLKERNEL_CONF_ROOT}" ]] && kernel_config_paths="${INSTALLKERNEL_CONF_ROOT} ${kernel_config_paths}"
 
@@ -239,10 +256,10 @@ load_config () {
 			break
 		fi
 	done
-	
+
 	if [[ -z ${kernel_configs} ]]; then
 		ewarn "No configuration found. Creating default one. Don't forget to configure kernel commandline"
-		
+
 		echo '# Add your kernel commandline arguments following ";"
 # KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; example=test kernel=test cmdline=test arguments=test"
 KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ;"
@@ -254,7 +271,7 @@ ONLY_LATEST=false
 REVERSE_ORDER=false
 
 # Entry label length limit of 60 characters for better compatibility with UEFI Firmware
-# Turn on to disable. Thorough testing is recommended before using entry labels longer than 60 characters 
+# Turn on to disable. Thorough testing is recommended before using entry labels longer than 60 characters
 DISABLE_LABEL_LIMIT=false
 
 # Turn on to not insert any kernel command line into the boot entry whatsoever
@@ -269,17 +286,17 @@ DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
 
 		# Check if entry label limit is turned off
 		[[ -n $(grep "ENTRY_LABEL_LIMIT=false\|DISABLE_LABEL_LIMIT=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ENTRY_LABEL_LIMIT=0
-		
+
 		# Check if entries should be added in the reverse order
 		[[ -n $(grep "REVERS_ORDER=true\|REVERSE_ORDER=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && REVERSE_ORDER=1
-		
+
 		# Check if we should disable the kernel command line
 		[[ -n $(grep "DISABLE_CMDLINE=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && DISABLE_CMDLINE=1 && ewarn "Warning! DISABLE_CMDLINE option activated. All entries will be added into the firmware without a kernel command line. System will possibly be un-bootable unless they are configured elsewhere."
 	fi
 
 	local IFS=$'\n'
 	for config in ${kernel_configs}; do
-		
+
 		local IFS=' '
 		# Verify kernel commands
 		for check_config in ${config}; do
@@ -288,17 +305,17 @@ DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
 			# Verify if "root=" is present
 			[[ "$check_config" == "root="* ]] && valid_kernel_commands=1
 		done
-		
+
 		[[ -z $valid_kernel_commands && $DISABLE_CMDLINE -ne 1 ]] && ewarn "Warning! Kernel command \"root=\" is missing from loaded configuration!"
-		
+
 		[[ -z ${config} ]] && ewarn "Warning! Loaded empty uefi-mkconfig configuration!"
-	
+
 		kernel_configs_wip="$strip_kernel_commands
 $kernel_configs_wip"
 
 		valid_kernel_commands=
 		strip_kernel_commands=
-		
+
 		local IFS=$'\n'
 	done
 
@@ -308,14 +325,14 @@ $kernel_configs_wip"
 
 main () {
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-	
+
 	# Load mocked-up lsblk output for script testing
 	if [[ $UMC_TEST == true ]] && [[ $UMC_MOCK == true ]]; then
 		lsblk_initial_state="$(sed "s/ * /;/g" "$UMC_TEST_LSBLK")"
 	else
 		lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTN,UUID,PARTLABEL | grep "$efi_parttype" | sed "s/ * /;/g")"
 	fi
-	
+
 	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "/")"
 	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
@@ -327,7 +344,7 @@ main () {
 
 	if [[ ${EUID} -ne 0 ]]; then
 		die "Please run uefi-mkconfig as root!"
-	
+
 	elif [[ -z $(printf "%s\n" "$mounted_efi_partitions" | cut -d";" -f3) ]]; then
 		die "lsblk can't see PARTTYPE!"
 
@@ -356,7 +373,7 @@ main () {
 	fi
 
 	# Get initial state of UEFI entries
-	
+
 	if [[ $UMC_TEST == "true" ]]; then
 		initial_uefi_state="$(cat "$UMC_TEST_EFIBOOTMGR")"
 	else
@@ -404,7 +421,7 @@ main () {
 	local latest_efi_file
 	latest_efi_file=
 	[[ -n ${ONLY_LATEST} ]] && latest_efi_file="${partition_efis/*\/}"
-	
+
 	# Skip this kernel version if ignore file is found
 	for efi_file in $partition_efis; do
 		if [[ -f "$efi_file.ignore" ]]; then
@@ -412,7 +429,7 @@ main () {
 			partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
 			# Get partition
 			partition=$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition_mount;" | cut -d";" -f1)
-			
+
 			ewarn "Ignoring \"$efi_file\" on \"$partition\""
 			# Remove ignored efi files from the list
 			partition_efis="${partition_efis/"${efi_file}"}"
@@ -487,10 +504,10 @@ main () {
 		# Add efi entry for efi file
 		local IFS=$'\n'
 		for kernel_config in ${kernel_configs}; do
-			
+
 			# Make sure efi_file_path is correct for every iteration
 			efi_file_path="${efi_file//$partition_mount}"
-			
+
 			entry_label="${kernel_config/\ \;*}"
 			entry_label="${entry_label/\ }"
 			config_kernel_commands="${kernel_config/*\ \;}"
@@ -512,10 +529,24 @@ main () {
 
 			# Convert chosen entry ID into hex
 			bootnum="$(printf %04X $bootnum)"
-			
+
+			# Get partition ID
+			partition_id="$(printf "%s\n" "$lsblk_initial_state" | grep "$partition" | cut -d";" -f4)"
+
+			# Prepare parameters for adding new entry
+			local opt_backup_efi
+			local msg_backup_efi
+			if [[ -n $backup_efi ]]; then
+				opt_backup_efi="--create-only"
+				msg_backup_efi="BACKUP "
+			else
+				opt_backup_efi="--create"
+			fi
+
 			entry_kernel_commands="${config_kernel_commands}"
-			
-			XEN=1
+
+			# Enable/Disable Xen support
+			XEN=
 
 			if [[ -n $XEN ]]; then
 				add_xen_uefi_entry
