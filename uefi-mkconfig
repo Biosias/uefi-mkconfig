@@ -380,17 +380,17 @@ Usage: uefi_mkconfig [options]
         --version -v    Print only version
         --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
 
-        if [[ "${options}" == *"--help"* ]] || [[ "${options}" == *"-h"* ]]; then
-            echo "${help_message}"
-            exit 0
-
-        elif [[ "${options}" == *"--version"* ]] || [[ "${options}" == *"-v"* ]]; then
+        if [[ "${options}" == "--version" ]] || [[ "${options}" == "-v" ]]; then
             echo "${help_message}" | grep "Github" -B3
             exit 0
 
-        elif [[ "${options}" == *"--dry-run"* ]] || [[ "${options}" == *"-d"* ]]; then
+        elif [[ "${options}" == "--dry-run" ]] || [[ "${options}" == "-d" ]]; then
             echo "Running Dry Run mode!"
             UMC_TEST=true
+
+        else
+            echo "${help_message}"
+            exit 0
 
         fi
 
