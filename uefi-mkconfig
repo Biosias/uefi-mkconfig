@@ -338,6 +338,8 @@ main () {
     local IFS=$'\n'
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 
+    uefi_mkconfig_version="3.5"
+
 	# Load mocked-up lsblk output for script testing
 	if [[ $UMC_TEST == true ]] && [[ $UMC_MOCK == true ]]; then
 		lsblk_initial_state="$(sed "s/ * /;/g" "$UMC_TEST_LSBLK")"
@@ -368,9 +370,31 @@ main () {
 
 	fi
 
-    #### Add check for command line options here !
+    # Handle Commandline options
+    if [[ -n ${1} ]]; then
+        help_message="uefi_mkconfig automatic UEFI entry management script
+Version: ${uefi_mkconfig_version}
+Installed in: $(which ${0})
+Github: https://github.com/Biosias/uefi-mkconfig
 
-    ####
+Usage: uefi_mkconfig [options]
+        --help -h       Print this message
+        --version -v    Print only version
+        --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
+
+        if [[ "${1}" == *"--help"* ]] || [[ "${1}" == *"-h"* ]]; then
+            echo "${help_message}"
+
+        elif [[ "${1}" == *"--version"* ]] || [[ "${1}" == *"-v"* ]]; then
+            echo "${help_message}" | grep "Github" -B3
+
+        elif [[ "${1}" == *"--dry-run"* ]] || [[ "${1}" == *"-d"* ]]; then
+            echo "Running Dry Run mode!"
+            UMC_TEST=true
+
+        fi
+
+    fi
 
 	# Get kernel prefix from os-release
 	if [[ -f /etc/os-release ]]; then
