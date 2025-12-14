@@ -416,7 +416,7 @@ Usage: uefi_mkconfig [options]
 	fi
 
 	# Get initial state of UEFI entries
-	if [[ $UMC_TEST == "true" ]]; then
+	if [[ $UMC_TEST == true ]] && [[ $UMC_MOCK == true ]]; then
 		initial_uefi_state="$(cat "$UMC_TEST_EFIBOOTMGR")"
 	else
 		initial_uefi_state="$(efibootmgr -u)"
