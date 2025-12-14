@@ -74,7 +74,7 @@ prepare_shim () {
 		using_shim="using shim \"$shim\" "
 
 		# Set efibootmgr loader to shim from kernel efi file
-		efi_loader="${shim}"
+		efi_loader="$(echo ${shim} | sed 's/\//\\/g')"
 	fi
 
 }
@@ -120,6 +120,13 @@ add_uefi_entry () {
 
 	# Clean redundant spaces from the kernel commandline
 	entry_kernel_commands="$( echo $entry_kernel_commands | sed -E 's/\ +/ /g' | sed 's/ $//g' )"
+
+    # Use forwardslashes instead of backslashes in the loader section
+    if [[ -n ${EFI_LOADER_FORWARDSLASH} ]]; then
+        efi_loader="$(echo ${efi_loader} | sed 's/\\/\//g')"
+        entry_kernel_commands="$(echo ${entry_kernel_commands} | sed 's/\\/\//g')"
+
+    fi
 
 	einfo "Creating ${msg_backup_efi}UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" ${using_shim}found on \"$partition\""
 
@@ -283,6 +290,10 @@ REVERSE_ORDER=false
 # Turn on to disable. Thorough testing is recommended before using entry labels longer than 60 characters
 DISABLE_LABEL_LIMIT=false
 
+# Exchange backslashes for forwardslashes in the path to the efi file
+# This is fix for some uefi firmwares that have problem with backslashes
+EFI_LOADER_FORWARDSLASH=false
+
 # Turn on to not insert any kernel command line into the boot entry whatsoever
 # Allows kernel command line to be defined in another way without being overwritten
 # Anything written into the KERNEL_CONFIG after the ";" will be ignored
@@ -301,6 +312,9 @@ DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
 
 		# Check if we should disable the kernel command line
 		[[ -n $(grep "DISABLE_CMDLINE=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && DISABLE_CMDLINE=1 && ewarn "Warning! DISABLE_CMDLINE option activated. All entries will be added into the firmware without a kernel command line. System will possibly be un-bootable unless they are configured elsewhere."
+
+		# Check if we should use forwardslashes instead of backslashes
+		[[ -n $(grep "EFI_LOADER_FORWARDSLASH=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && EFI_LOADER_FORWARDSLASH=1
 	fi
 
 			# Verify if "root=" is present
