@@ -354,8 +354,37 @@ main () {
 	# Entry label limit is on by default
 	ENTRY_LABEL_LIMIT=1
 
+    # Handle Commandline options
+    if [[ -n ${options} ]]; then
+        help_message="uefi_mkconfig automatic UEFI entry management script
+Version: ${uefi_mkconfig_version}
+Installed in: $(which ${0})
+Github: https://github.com/Biosias/uefi-mkconfig
+
+Usage: uefi_mkconfig [options]
+        --help -h       Print this message
+        --version -v    Print only version
+        --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
+
+        if [[ "${options}" == *"--help"* ]] || [[ "${options}" == *"-h"* ]]; then
+            echo "${help_message}"
+            exit 0
+
+        elif [[ "${options}" == *"--version"* ]] || [[ "${options}" == *"-v"* ]]; then
+            echo "${help_message}" | grep "Github" -B3
+            exit 0
+
+        elif [[ "${options}" == *"--dry-run"* ]] || [[ "${options}" == *"-d"* ]]; then
+            echo "Running Dry Run mode!"
+            UMC_TEST=true
+
+        fi
+
+    fi
+
 	einfo "Running uefi-mkconfig..."
 
+    # Run additional checks
 	if [[ ${EUID} -ne 0 ]]; then
 		die "Please run uefi-mkconfig as root!"
 
@@ -369,32 +398,6 @@ main () {
 		die "Unable to access efibootmgr command!"
 
 	fi
-
-    # Handle Commandline options
-    if [[ -n ${1} ]]; then
-        help_message="uefi_mkconfig automatic UEFI entry management script
-Version: ${uefi_mkconfig_version}
-Installed in: $(which ${0})
-Github: https://github.com/Biosias/uefi-mkconfig
-
-Usage: uefi_mkconfig [options]
-        --help -h       Print this message
-        --version -v    Print only version
-        --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
-
-        if [[ "${1}" == *"--help"* ]] || [[ "${1}" == *"-h"* ]]; then
-            echo "${help_message}"
-
-        elif [[ "${1}" == *"--version"* ]] || [[ "${1}" == *"-v"* ]]; then
-            echo "${help_message}" | grep "Github" -B3
-
-        elif [[ "${1}" == *"--dry-run"* ]] || [[ "${1}" == *"-d"* ]]; then
-            echo "Running Dry Run mode!"
-            UMC_TEST=true
-
-        fi
-
-    fi
 
 	# Get kernel prefix from os-release
 	if [[ -f /etc/os-release ]]; then
@@ -620,5 +623,7 @@ ${partition_efis}"
 	einfo "Done"
 
 }
+
+options="${1}"
 
 main
