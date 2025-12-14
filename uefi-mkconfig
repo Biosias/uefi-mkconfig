@@ -380,7 +380,11 @@ Usage: uefi_mkconfig [options]
         --version -v    Print only version
         --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
 
-        if [[ "${options}" == "--version" ]] || [[ "${options}" == "-v" ]]; then
+        if [[ "${options}" == "--help" ]] || [[ "${options}" == "-h" ]]; then
+            echo "${help_message}"
+            exit 0
+
+        elif [[ "${options}" == "--version" ]] || [[ "${options}" == "-v" ]]; then
             echo "${help_message}" | grep "Github" -B3
             exit 0
 
@@ -389,6 +393,7 @@ Usage: uefi_mkconfig [options]
             UMC_TEST=true
 
         else
+            echo "uefi-mkconfig: unrecognized option '${options}'"
             echo "${help_message}"
             exit 0
 
