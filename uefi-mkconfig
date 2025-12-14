@@ -238,8 +238,12 @@ load_config () {
 	local kernel_configs_wip
 	local config
 
-	kernel_config_paths="/etc/default /etc/kernel /usr/lib/kernel"
-	[[ -n "${INSTALLKERNEL_CONF_ROOT}" ]] && kernel_config_paths="${INSTALLKERNEL_CONF_ROOT} ${kernel_config_paths}"
+	kernel_config_paths="/etc/default
+/etc/kernel
+/usr/lib/kernel"
+
+	[[ -n "${INSTALLKERNEL_CONF_ROOT}" ]] && kernel_config_paths="${INSTALLKERNEL_CONF_ROOT}
+${kernel_config_paths}"
 
 	for kernel_config_path in ${kernel_config_paths}; do
 		if [[ -f ${kernel_config_path}/uefi-mkconfig ]]; then
@@ -249,16 +253,21 @@ load_config () {
 				# Turn off label length for legacy config file
 				ENTRY_LABEL_LIMIT=0
 				ewarn "Using legacy uefi-mkconfig configuration file format!"
+
 			else
 				kernel_configs="$(grep "KERNEL_CONFIG" "${kernel_config_path}/uefi-mkconfig" | grep -v "#")"
+
 			fi
+
 			einfo "Using kernel commands from \"${kernel_config_path}/uefi-mkconfig\""
+
 			break
 		fi
+
 	done
 
 	if [[ -z ${kernel_configs} ]]; then
-		ewarn "No configuration found. Creating default one. Don't forget to configure kernel commandline"
+		die "No configuration found! Creating default one. Don't forget to configure kernel commandline!"
 
 		echo '# Add your kernel commandline arguments following ";"
 # KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; example=test kernel=test cmdline=test arguments=test"
@@ -294,29 +303,31 @@ DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
 		[[ -n $(grep "DISABLE_CMDLINE=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && DISABLE_CMDLINE=1 && ewarn "Warning! DISABLE_CMDLINE option activated. All entries will be added into the firmware without a kernel command line. System will possibly be un-bootable unless they are configured elsewhere."
 	fi
 
+			# Verify if "root=" is present
+	if [[ "$kernel_configs" != *"root="* && $DISABLE_CMDLINE -ne 1 ]]; then
+	    die "Warning! Kernel command \"root=\" is missing from loaded configuration!
+   This option is vital for successfully booting the system! Booting will fail without it!
+   If you set kernel commandline via another method, please set DISABLE_CMDLINE=true in your uefi_mkcofing to suppress this check!"
+	fi
+
 	local IFS=$'\n'
 	for config in ${kernel_configs}; do
-
 		local IFS=' '
 		# Verify kernel commands
 		for check_config in ${config}; do
 			# Strip initrd=* from config file
-			[[ "$check_config" != *"initrd="* ]] && strip_kernel_commands="$strip_kernel_commands $check_config"
-			# Verify if "root=" is present
-			[[ "$check_config" == "root="* ]] && valid_kernel_commands=1
+			if [[ "$check_config" != *"initrd="* ]]; then
+			    strip_kernel_commands="$strip_kernel_commands $check_config"
+			fi
+
 		done
-
-		[[ -z $valid_kernel_commands && $DISABLE_CMDLINE -ne 1 ]] && ewarn "Warning! Kernel command \"root=\" is missing from loaded configuration!"
-
-		[[ -z ${config} ]] && ewarn "Warning! Loaded empty uefi-mkconfig configuration!"
+		local IFS=$'\n'
 
 		kernel_configs_wip="$strip_kernel_commands
 $kernel_configs_wip"
 
-		valid_kernel_commands=
 		strip_kernel_commands=
 
-		local IFS=$'\n'
 	done
 
 	kernel_configs_wip=${kernel_configs_wip//'KERNEL_CONFIG="'}
@@ -324,6 +335,7 @@ $kernel_configs_wip"
 }
 
 main () {
+    local IFS=$'\n'
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 
 	# Load mocked-up lsblk output for script testing
@@ -334,9 +346,9 @@ main () {
 	fi
 
 	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "/")"
-	valid_kernel_commands=
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	kernel_configs=
+
 	# Entry label limit is on by default
 	ENTRY_LABEL_LIMIT=1
 
@@ -356,6 +368,10 @@ main () {
 
 	fi
 
+    #### Add check for command line options here !
+
+    ####
+
 	# Get kernel prefix from os-release
 	if [[ -f /etc/os-release ]]; then
 		. /etc/os-release
@@ -373,7 +389,6 @@ main () {
 	fi
 
 	# Get initial state of UEFI entries
-
 	if [[ $UMC_TEST == "true" ]]; then
 		initial_uefi_state="$(cat "$UMC_TEST_EFIBOOTMGR")"
 	else
@@ -395,24 +410,35 @@ main () {
 	kernel_images_old="$(echo "$kernel_images_new" | grep "old.efi")"
 	kernel_images_new="$(echo "$kernel_images_new" | grep -v "old.efi")"
 
-        # Check if any kernel images were found
-        if [ -z "${kernel_images_old}" ] && [ -z "${kernel_images_new}" ]; then
-                die "No efi kernel images found!"
-        fi
+    # Check if any kernel images were found
+    if [ -z "${kernel_images_old}" ] && [ -z "${kernel_images_new}" ]; then
+               die "No efi kernel images found!"
+    fi
 
 	# Sort kernel images
-	kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")"
+	kernel_images="$(sort -uV <<< "$kernel_images_old")
+$(sort -uV <<< "$kernel_images_new")"
 
+	# Adding path back to the kernel image
 	local partition_efis=
-	# Add path back to the kernel image
 	for kernel_image in $kernel_images; do
-		# Variable partition_mounts in this case can't be inside of ""
-		partition_efis+="$(find $partition_mounts -name "$kernel_image") "
+	    ## If the variable partition_efis is empty, add initial value
+	    if [[ -n ${partition_efis} ]]; then
+			# Variable partition_mounts in this case can't be inside of ""
+		    partition_efis="${partition_efis}
+$(find $partition_mounts -name "$kernel_image")"
+		else
+		    partition_efis="$(find $partition_mounts -name "$kernel_image")"
+		fi
 	done
 
 	# Move backup entries to the beginning of the list
 	for efi_file in $partition_efis; do
-		[[ -f "${efi_file}.uefibackup" ]] && partition_efis="${efi_file}.uefibackup ${partition_efis}"
+		if [[ -f "${efi_file}.uefibackup" ]]; then
+		    partition_efis="${efi_file}.uefibackup
+${partition_efis}"
+		fi
+
 	done
 
 	load_config
@@ -420,7 +446,9 @@ main () {
 	# If only the latest kernel image shoud be added, remove the rest from the list
 	local latest_efi_file
 	latest_efi_file=
-	[[ -n ${ONLY_LATEST} ]] && latest_efi_file="${partition_efis/*\/}"
+	if [[ -n ${ONLY_LATEST} ]]; then
+	    latest_efi_file="${partition_efis/*\/}"
+	fi
 
 	# Skip this kernel version if ignore file is found
 	for efi_file in $partition_efis; do
@@ -440,11 +468,11 @@ main () {
 
 	done
 
+	# Revers order in which the entries will be added
 	if [[ -n "$REVERSE_ORDER" ]]; then
 		local reverse_entries
 		reverse_entries=
 
-		# Revers order in which the entries will be added
 		for rev_entry in $partition_efis; do
 			reverse_entries="$rev_entry $reverse_entries"
 		done
@@ -457,6 +485,7 @@ main () {
 		entry_id=$(($(wc -w <<< "$partition_efis") * ($(wc -l <<< "$kernel_configs")-1)))
 	fi
 
+    # Prepare info for every efi file so new uefi entry can be crated for it
 	for efi_file in $partition_efis; do
 
 		# Get partition mount
@@ -488,9 +517,9 @@ main () {
 		## Remove .efi suffix if it exists
 		[[ "$kernel_version" == *".efi"* ]] && kernel_version="${kernel_version/.efi*/}"
 
+		# Check for existence of backup entry
 		backup_efi=
 		local backup_entry
-		# Check for existence of backup entry
 		if [[ "$efi_file" == *".uefibackup" ]]; then
 			efi_file="${efi_file/.uefibackup/}"
 			backup_entry="$(grep "UMCB ${efi_file_path/.uefibackup} on ${partition_label} " <<< "$initial_uefi_state")"
@@ -502,7 +531,6 @@ main () {
 		fi
 
 		# Add efi entry for efi file
-		local IFS=$'\n'
 		for kernel_config in ${kernel_configs}; do
 
 			# Make sure efi_file_path is correct for every iteration
@@ -546,19 +574,21 @@ main () {
 			entry_kernel_commands="${config_kernel_commands}"
 
 			# Enable/Disable Xen support
+			## NON FUNCTIONAL FOR NOW
 			XEN=
-
 			if [[ -n $XEN ]]; then
 				add_xen_uefi_entry
 			else
 				add_uefi_entry
 			fi
 
+			# If the order in which entries are added should be is reverse reverse counting of the boot number as well
 			if [[ -n $REVERSE_ORDER ]]; then
 				entry_id=$((entry_id+1))
 			else
 				entry_id=$((entry_id-1))
 			fi
+
 		done
 
 	done
