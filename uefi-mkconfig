@@ -348,6 +348,26 @@ $kernel_configs_wip"
 	kernel_configs=${kernel_configs_wip//\"}
 }
 
+findmountpoint() {
+    # Find mountpoint in which the kernel image resides
+    local mountpoint=
+    local realmountpoint=
+    local finding_partition=
+
+    local IFS=$'\n'
+    for finding_partition in $(printf "%s\n" "$lsblk_initial_state"); do
+            mountpoint="$(echo "$finding_partition" | cut -d";" -f2)"
+
+            if [[ "$efi_file" == *"$mountpoint"* ]] && [[ $(echo "$mountpoint" | wc -c) -gt $(echo "$realmountpoint" | wc -c) ]]; then
+                    realmountpoint="$mountpoint"
+
+            fi
+
+    done
+
+    echo "$realmountpoint"
+}
+
 main () {
     local IFS=$'\n'
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
@@ -500,7 +520,7 @@ ${partition_efis}"
 	for efi_file in $partition_efis; do
 		if [[ -f "$efi_file.ignore" ]]; then
 			# Get partition mount
-			partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
+			partition_mount="$(findmountpoint)"
 			# Get partition
 			partition=$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition_mount;" | cut -d";" -f1)
 
@@ -535,7 +555,7 @@ ${partition_efis}"
 	for efi_file in $partition_efis; do
 
 		# Get partition mount
-		partition_mount="${efi_file/\/${efi_file#\/*\/}/}"
+		partition_mount="$(findmountpoint)"
 
 		# Get partition
 		partition=$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition_mount;" | cut -d";" -f1)
