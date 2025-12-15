@@ -133,13 +133,13 @@ add_uefi_entry () {
 	# Add new entry
 	if [[ -n $DISABLE_CMDLINE ]]; then
 		if [[ $UMC_TEST == true ]]; then
-			echo "TEST: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
+			echo "DEBUG: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
 		else
 			efibootmgr -q $opt_backup_efi -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" || die "Failed to add UEFI ${msg_backup_efi}entry for \"$efi_file_path\""
 		fi
 	else
 		if [[ $UMC_TEST == true ]]; then
-			echo "TEST: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
+			echo "DEBUG: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
 		else
 			efibootmgr -q $opt_backup_efi -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" -u ${entry_kernel_commands} || die "Failed to add UEFI ${msg_backup_efi}entry for \"$efi_file_path\""
 		fi
@@ -211,7 +211,7 @@ clean_legacy_entries () {
 		for entry in ${entries}; do
 			if [[ "$(printf %d "0x${entry:4:4}" 2> /dev/null)" -gt 255 ]] && [[ "$(printf %d "0x${entry:4:4}" 2> /dev/null)" -lt 513 ]]; then
 				if [[ $UMC_TEST == true ]]; then
-					echo "TEST: efibootmgr -q -B -b \"${entry:4:4}\""
+					echo "DEBUG: efibootmgr -q -B -b \"${entry:4:4}\""
 				else
 					efibootmgr -q -B -b "${entry:4:4}"
 				fi
@@ -231,7 +231,7 @@ wipe_entries () {
 	local IFS=$'\n'
 	for delete_entry in $initial_uefi_umc_state; do
 		if [[ $UMC_TEST == true ]]; then
-			echo "TEST: efibootmgr -q -B -b \"${delete_entry:4:4}\""
+			echo "DEBUG: efibootmgr -q -B -b \"${delete_entry:4:4}\""
 		else
 			efibootmgr -q -B -b "${delete_entry:4:4}"
 		fi
