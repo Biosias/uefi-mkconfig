@@ -274,8 +274,6 @@ ${kernel_config_paths}"
 	done
 
 	if [[ -z ${kernel_configs} ]]; then
-		die "No configuration found! Creating default one. Don't forget to configure kernel commandline!"
-
 		echo '# Add your kernel commandline arguments following ";"
 # KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; example=test kernel=test cmdline=test arguments=test"
 KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ;"
@@ -299,7 +297,8 @@ EFI_LOADER_FORWARDSLASH=false
 # Anything written into the KERNEL_CONFIG after the ";" will be ignored
 DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
 
-		kernel_configs="${default_label} ;"
+		die "No configuration found! Creating default one. Don't forget to configure kernel commandline!"
+
 	else
 		# Check if only the latest efi file should be added
 		[[ -n $(grep "ONLY_LATEST=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && ONLY_LATEST=1
