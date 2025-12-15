@@ -297,7 +297,7 @@ EFI_LOADER_FORWARDSLASH=false
 # Anything written into the KERNEL_CONFIG after the ";" will be ignored
 DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
 
-		die "No configuration found! Creating default one. Don't forget to configure kernel commandline!"
+		die "No configuration found! Creating default one in '/etc/default/uefi-mkconfig'. Don't forget to configure the kernel commandline!"
 
 	else
 		# Check if only the latest efi file should be added
