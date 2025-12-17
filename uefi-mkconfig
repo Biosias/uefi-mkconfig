@@ -273,8 +273,10 @@ ${kernel_config_paths}"
 
 	done
 
+	# Generate config if none is found and dry run is not enabled. But generate it when running inside of test chroot.
 	if [[ -z ${kernel_configs} ]]; then
-		echo '# Add your kernel commandline arguments following ";"
+	    if [[ $UMC_TEST == false && $UMC_MOCK == false ]] || [[ $UMC_TEST == true && $UMC_MOCK == true ]]; then
+			echo '# Add your kernel commandline arguments following ";"
 # KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; example=test kernel=test cmdline=test arguments=test"
 KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ;"
 
@@ -296,6 +298,7 @@ EFI_LOADER_FORWARDSLASH=false
 # Allows kernel command line to be defined in another way without being overwritten
 # Anything written into the KERNEL_CONFIG after the ";" will be ignored
 DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
+		fi
 
 		die "No configuration found! Creating default one in '/etc/default/uefi-mkconfig'. Don't forget to configure the kernel commandline!"
 
@@ -370,17 +373,7 @@ findmountpoint() {
 main () {
     local IFS=$'\n'
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-
     uefi_mkconfig_version="3.5"
-
-	# Load mocked-up lsblk output for script testing
-	if [[ $UMC_TEST == true ]] && [[ $UMC_MOCK == true ]]; then
-		lsblk_initial_state="$(sed "s/ * /;/g" "$UMC_TEST_LSBLK")"
-	else
-		lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTN,UUID,PARTLABEL | grep "$efi_parttype" | sed "s/ * /;/g")"
-	fi
-
-	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "/")"
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	kernel_configs=
 
@@ -422,11 +415,27 @@ Usage: uefi_mkconfig [options]
 
 	einfo "Running uefi-mkconfig..."
 
-    # Run additional checks
+	# Check if uefi-mkconfig is running as root
 	if [[ ${EUID} -ne 0 ]]; then
 		die "Please run uefi-mkconfig as root!"
+	fi
 
-	elif [[ -z $(printf "%s\n" "$mounted_efi_partitions" | cut -d";" -f3) ]]; then
+    # Load uefi-mkconfig configuration file
+	load_config
+
+	# Get list of EFI partitions
+	if [[ $UMC_TEST == true ]] && [[ $UMC_MOCK == true ]]; then
+	    # Load mocked-up lsblk output for script testing
+		lsblk_initial_state="$(sed "s/ * /;/g" "$UMC_TEST_LSBLK")"
+	else
+		lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTN,UUID,PARTLABEL | grep "$efi_parttype" | sed "s/ * /;/g")"
+	fi
+
+    # Select only mounted EFI partitions
+	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "/")"
+
+    # Run additional checks
+	if [[ -z $(printf "%s\n" "$mounted_efi_partitions" | cut -d";" -f3) ]]; then
 		die "lsblk can't see PARTTYPE!"
 
 	elif [[ -z ${mounted_efi_partitions} ]]; then
@@ -505,8 +514,6 @@ ${partition_efis}"
 		fi
 
 	done
-
-	load_config
 
 	# If only the latest kernel image shoud be added, remove the rest from the list
 	local latest_efi_file
@@ -617,7 +624,7 @@ ${partition_efis}"
 			while [[ "$(grep -v " UMC " <<< "$initial_uefi_state")" == *"Boot$(printf %04X $bootnum)"* ]]; do
 				bootnum=$((bootnum - 1))
 				# Die if script exceeds managed range 0200-0100
-				[[ $bootnum -lt 256 ]] && die "All Boot IDs within managed range are taken!"
+				[[ $bootnum -lt 256 ]] && die "All Boot IDs within managed range from 0200 to 0100 are taken!"
 			done
 
 			# Convert chosen entry ID into hex
