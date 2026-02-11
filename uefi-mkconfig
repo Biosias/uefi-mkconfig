@@ -357,7 +357,7 @@ findmountpoint() {
     local finding_partition=
 
     local IFS=$'\n'
-    for finding_partition in $(printf "%s\n" "$lsblk_initial_state"); do
+    for finding_partition in $(printf "%s\n" "$mounted_efi_partitions"); do
             mountpoint="$(echo "$finding_partition" | cut -d";" -f2)"
 
             if [[ "$efi_file" == *"$mountpoint"* ]] && [[ $(echo "$mountpoint" | wc -c) -gt $(echo "$realmountpoint" | wc -c) ]]; then
@@ -428,14 +428,14 @@ Usage: uefi_mkconfig [options]
 	    # Load mocked-up lsblk output for script testing
 		lsblk_initial_state="$(sed "s/ * /;/g" "$UMC_TEST_LSBLK")"
 	else
-		lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTN,UUID,PARTLABEL | grep "$efi_parttype" | sed "s/ * /;/g")"
+		lsblk_initial_state="$(lsblk -lno NAME,MOUNTPOINT,PARTTYPE,PARTN,UUID,PARTLABEL | sed "s/ * /;/g")"
 	fi
 
     # Select only mounted EFI partitions
-	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "/")"
+	mounted_efi_partitions="$(printf "%s\n" "$lsblk_initial_state" | grep "$efi_parttype" | grep "/")"
 
     # Run additional checks
-	if [[ -z $(printf "%s\n" "$mounted_efi_partitions" | cut -d";" -f3) ]]; then
+	if [[ -z $(printf "%s\n" "$lsblk_initial_state" | cut -d";" -f3) ]]; then
 		die "lsblk can't see PARTTYPE!"
 
 	elif [[ -z ${mounted_efi_partitions} ]]; then
@@ -632,7 +632,7 @@ ${partition_efis}"
 			bootnum="$(printf %04X $bootnum)"
 
 			# Get partition ID
-			partition_id="$(printf "%s\n" "$lsblk_initial_state" | grep "$partition" | cut -d";" -f4)"
+			partition_id="$(printf "%s\n" "$mounted_efi_partitions" | grep "$partition" | cut -d";" -f4)"
 
 			# Prepare parameters for adding new entry
 			local entry_creation_opt
