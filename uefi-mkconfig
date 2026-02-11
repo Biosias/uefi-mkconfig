@@ -128,20 +128,20 @@ add_uefi_entry () {
 
     fi
 
-	einfo "Creating ${msg_backup_efi}UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" ${using_shim}found on \"$partition\""
+	einfo "Creating ${backup_label}UEFI entry \"$bootnum\" for \"$partition_mount$efi_file_path\" ${using_shim}found on \"$partition\""
 
 	# Add new entry
 	if [[ -n $DISABLE_CMDLINE ]]; then
 		if [[ $UMC_TEST == true ]]; then
-			echo "DEBUG: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
+			echo "DEBUG: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
 		else
-			efibootmgr -q $opt_backup_efi -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" || die "Failed to add UEFI ${msg_backup_efi}entry for \"$efi_file_path\""
+			efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
 		fi
 	else
 		if [[ $UMC_TEST == true ]]; then
-			echo "DEBUG: efibootmgr -q $opt_backup_efi -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
+			echo "DEBUG: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
 		else
-			efibootmgr -q $opt_backup_efi -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" -u ${entry_kernel_commands} || die "Failed to add UEFI ${msg_backup_efi}entry for \"$efi_file_path\""
+			efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" -u ${entry_kernel_commands} || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
 		fi
 	fi
 
@@ -188,8 +188,8 @@ ucode=${microcode}"
 	# Prepare xen efi as efi loader
 	efi_loader="$( echo "${xen_efi_path}${xen_efi_file}" | sed 's/\//\\/g' )"
 
-	echo "efibootmgr -q ${opt_backup_efi} -b "${bootnum}" --disk /dev/"${partition}" --part "${partition_id}" --label "${entry_label}" --loader "${efi_loader}" -u "cfg=${xen_config_file}""
-	#efibootmgr -q ${opt_backup_efi} -b "${bootnum}" --disk /dev/"${partition}" --part "${partition_id}" --label "${entry_label}" --loader "${efi_loader}" -u ${xen_config_file}
+	echo "efibootmgr -q ${entry_creation_opt} -b "${bootnum}" --disk /dev/"${partition}" --part "${partition_id}" --label "${entry_label}" --loader "${efi_loader}" -u "cfg=${xen_config_file}""
+	#efibootmgr -q ${entry_creation_opt} -b "${bootnum}" --disk /dev/"${partition}" --part "${partition_id}" --label "${entry_label}" --loader "${efi_loader}" -u ${xen_config_file}
 }
 
 wipe_xen_configs () {
@@ -592,6 +592,7 @@ ${partition_efis}"
 		# Check for existence of backup entry
 		backup_efi=
 		local backup_entry
+		echo "TESTING: $efi_file"
 		if [[ "$efi_file" == *".uefibackup" ]]; then
 			efi_file="${efi_file/.uefibackup/}"
 			backup_entry="$(grep "UMCB ${efi_file_path/.uefibackup} on ${partition_label} " <<< "$initial_uefi_state")"
@@ -634,13 +635,13 @@ ${partition_efis}"
 			partition_id="$(printf "%s\n" "$lsblk_initial_state" | grep "$partition" | cut -d";" -f4)"
 
 			# Prepare parameters for adding new entry
-			local opt_backup_efi
-			local msg_backup_efi
+			local entry_creation_opt
+			local backup_label
 			if [[ -n $backup_efi ]]; then
-				opt_backup_efi="--create-only"
-				msg_backup_efi="BACKUP "
+				entry_creation_opt="--create-only"
+				backup_label="BACKUP "
 			else
-				opt_backup_efi="--create"
+				entry_creation_opt="--create"
 			fi
 
 			entry_kernel_commands="${config_kernel_commands}"
