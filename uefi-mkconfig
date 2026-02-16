@@ -328,24 +328,42 @@ Usage: uefi_mkconfig [options]
         --version -V    Print only version
         --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
 
-        if [[ "${options}" == "--help" ]] || [[ "${options}" == "-h" ]]; then
-            echo "${help_message}"
-            exit 0
+        local IFS=' '
+        local valid_option
+        for option in ${options}; do
+            valid_option=
 
-        elif [[ "${options}" == "--version" ]] || [[ "${options}" == "-V" ]]; then
-            echo "${help_message}" | grep "Github" -B3
-            exit 0
+            if [[ "${option}" == "--dry-run" ]] || [[ "${option}" == "-d" ]]; then
+                einfo "Running in Dry Run mode!"
+                UMC_TEST=true
+                valid_option=1
+            fi
 
-        elif [[ "${options}" == "--dry-run" ]] || [[ "${options}" == "-d" ]]; then
-            einfo "Running Dry Run mode!"
-            UMC_TEST=true
+            if [[ "${option}" == "--verbose" ]] || [[ "${option}" == "-v" ]]; then
+                einfo "Running in Verbose mode!"
+                UMC_VERBOSE=true
+                valid_option=1
+            fi
 
-        else
-            echo "uefi-mkconfig: unrecognized option '${options}'"
-            echo "${help_message}"
-            exit 0
+            if [[ "${option}" == "--help" ]] || [[ "${option}" == "-h" ]]; then
+                echo "${help_message}"
+                exit 0
+            fi
 
-        fi
+            if [[ "${option}" == "--version" ]] || [[ "${option}" == "-V" ]]; then
+                echo "${help_message}" | grep "Github" -B3
+                exit 0
+            fi
+
+            if [[ -z ${valid_option} ]]; then
+                echo "uefi-mkconfig: unrecognized option '${option}'"
+                echo ""
+                echo "${help_message}"
+                exit 0
+            fi
+
+        done
+        local IFS=$'\n'
 
     fi
 
@@ -601,6 +619,6 @@ ${partition_efis}"
 
 }
 
-options="${1}"
+options="${1} ${2}"
 
 main
