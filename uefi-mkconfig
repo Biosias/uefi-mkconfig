@@ -323,13 +323,11 @@ Usage: uefi_mkconfig [options]
             valid_option=
 
             if [[ "${option}" == "--dry-run" ]] || [[ "${option}" == "-d" ]]; then
-                einfo "Running in Dry Run mode!"
                 UMC_TEST=true
                 valid_option=1
             fi
 
             if [[ "${option}" == "--verbose" ]] || [[ "${option}" == "-v" ]]; then
-                einfo "Running in Verbose mode!"
                 UMC_VERBOSE=true
                 valid_option=1
             fi
@@ -345,7 +343,7 @@ Usage: uefi_mkconfig [options]
             fi
 
             if [[ -z ${valid_option} ]]; then
-                echo "uefi-mkconfig: unrecognized option '${option}'"
+                echo "uefi-mkconfig: unrecognized option '${option}', exitting"
                 echo ""
                 echo "${help_message}"
                 exit 0
@@ -357,6 +355,8 @@ Usage: uefi_mkconfig [options]
     fi
 
 	einfo "Running uefi-mkconfig..."
+	[[ -n ${UMC_TEST} ]] && einfo "Running in Dry Run mode!"
+	[[ -n ${UMC_VERBOSE} ]] && einfo "Running in Verbose mode!"
 
 	# Check if uefi-mkconfig is running as root
 	if [[ ${EUID} -ne 0 ]]; then
