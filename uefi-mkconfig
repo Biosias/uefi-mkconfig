@@ -325,14 +325,14 @@ Github: https://github.com/Biosias/uefi-mkconfig
 
 Usage: uefi_mkconfig [options]
         --help -h       Print this message
-        --version -v    Print only version
+        --version -V    Print only version
         --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
 
         if [[ "${options}" == "--help" ]] || [[ "${options}" == "-h" ]]; then
             echo "${help_message}"
             exit 0
 
-        elif [[ "${options}" == "--version" ]] || [[ "${options}" == "-v" ]]; then
+        elif [[ "${options}" == "--version" ]] || [[ "${options}" == "-V" ]]; then
             echo "${help_message}" | grep "Github" -B3
             exit 0
 
