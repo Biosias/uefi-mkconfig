@@ -122,17 +122,11 @@ add_uefi_entry () {
 
 	# Add new entry
 	if [[ -n $DISABLE_CMDLINE ]]; then
-		if [[ $UMC_TEST == true ]]; then
-			echo "DEBUG: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
-		else
-			efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
-		fi
+		[[ -n ${UMC_VERBOSE} ]] && echo "Verbose: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
+		[[ $UMC_TEST == true ]] || efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
 	else
-		if [[ $UMC_TEST == true ]]; then
-			echo "DEBUG: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
-		else
-			efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" -u ${entry_kernel_commands} || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
-		fi
+		[[ -n ${UMC_VERBOSE} ]] && echo "Verbose: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
+		[[ $UMC_TEST == true ]] || efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" -u ${entry_kernel_commands} || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
 	fi
 
 }
@@ -146,11 +140,8 @@ clean_legacy_entries () {
 		entries="$(grep -v -e "BootOrder" -e "Timeout" -e "BootCurrent" <<< "$initial_uefi_state" | grep "$kernel_images")"
 		for entry in ${entries}; do
 			if [[ "$(printf %d "0x${entry:4:4}" 2> /dev/null)" -gt 255 ]] && [[ "$(printf %d "0x${entry:4:4}" 2> /dev/null)" -lt 513 ]]; then
-				if [[ $UMC_TEST == true ]]; then
-					echo "DEBUG: efibootmgr -q -B -b \"${entry:4:4}\""
-				else
-					efibootmgr -q -B -b "${entry:4:4}"
-				fi
+				[[ -n ${UMC_VERBOSE} ]] && echo "Verbose: efibootmgr -q -B -b \"${entry:4:4}\""
+				[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${entry:4:4}"
 
 				ewarn "Removing pre v2.0 legacy entry \"${entry:4:4}\""
 			fi
@@ -166,11 +157,8 @@ wipe_entries () {
 
 	local IFS=$'\n'
 	for delete_entry in $initial_uefi_umc_state; do
-		if [[ $UMC_TEST == true ]]; then
-			echo "DEBUG: efibootmgr -q -B -b \"${delete_entry:4:4}\""
-		else
-			efibootmgr -q -B -b "${delete_entry:4:4}"
-		fi
+		[[ -n ${UMC_VERBOSE} ]] && echo "Verbose: efibootmgr -q -B -b \"${delete_entry:4:4}\""
+		[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${delete_entry:4:4}"
 	done
 }
 
@@ -309,7 +297,7 @@ findmountpoint() {
 main () {
     local IFS=$'\n'
 	efi_parttype="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
-    uefi_mkconfig_version="3.5"
+    uefi_mkconfig_version="4.0"
 	kernel_prefixes="vmlinuz vmlinux- kernel- bzImage zImage"
 	kernel_configs=
 
@@ -326,6 +314,7 @@ Github: https://github.com/Biosias/uefi-mkconfig
 Usage: uefi_mkconfig [options]
         --help -h       Print this message
         --version -V    Print only version
+        --verbose -v    Run in verbose mode
         --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
 
         local IFS=' '
