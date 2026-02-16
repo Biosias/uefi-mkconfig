@@ -24,8 +24,6 @@ prepare_entry_label () {
 	entry_label="${entry_label/\%entry_id/$entry_id}"
 	entry_label="${entry_label/\%partition/$partition}"
 
-	[[ -n $XEN ]] && entry_label="Xen with $entry_label"
-
 	# Add prefix to entry label for easier identification
 	if [[ -n $backup_efi ]]; then
 		entry_label="UMCB $entry_label"
@@ -56,7 +54,7 @@ prepare_initramfs () {
 		ewarn "Ignoring initramfs image \"$partition_mount$initramfs_image\" of \"$partition_mount$efi_file_path\""
 	elif [[ -f "$partition_mount$initramfs_image" ]]; then
 		# Check if corresponding initramfs exists
-		[[ -z $XEN ]] && entry_kernel_commands="${entry_kernel_commands} initrd=${initramfs_image//\//\\}"
+		entry_kernel_commands="${entry_kernel_commands} initrd=${initramfs_image//\//\\}"
 	else
 		ewarn "No initramfs found for \"$partition_mount$efi_file_path\"."
 	fi
@@ -87,18 +85,10 @@ prepare_microcode () {
 	microcode=
 	microcode_path="${efi_file_path/${efi_file_path##*/}}"
 	if [[ -f "${partition_mount}${microcode_path}amd-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}amd-uc.img.ignore" ]]; then
-		if [[ -z $XEN ]]; then
-			entry_kernel_commands="${entry_kernel_commands} initrd=${microcode_path//\//\\}amd-uc.img"
-		else
-			microcode="amd-uc.img"
-		fi
+		microcode="amd-uc.img"
 	fi
 	if [[ -f "${partition_mount}${microcode_path}intel-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}intel-uc.img.ignore" ]]; then
-		if [[ -z $XEN ]]; then
-			entry_kernel_commands="${entry_kernel_commands} initrd=${microcode_path//\//\\}intel-uc.img"
-		else
-			microcode="intel-uc.img"
-		fi
+		microcode="intel-uc.img"
 	fi
 
 }
@@ -144,60 +134,6 @@ add_uefi_entry () {
 			efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" -u ${entry_kernel_commands} || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
 		fi
 	fi
-
-}
-
-add_xen_uefi_entry () {
-
-	local xen_efi_path
-	local xen_efi_file
-
-	# Get path where the Xen efi resides
-	xen_efi_path=$( echo "$efi_file_path" | sed s/$efi_file_name//g )
-
-	# Find Xen efi files in the same directory as this kernel image
-	xen_efi_file="$( tree --matchdirs -ixvP *xen*.efi ${partition_mount}${xen_efi_path} | grep .efi | head -n1 )"
-
-	prepare_entry_label
-
-	prepare_initramfs
-
-	# Strip .uefibackup from efi file path
-	[[ "$efi_file_path" == *".uefibackup" ]] && efi_file_path=${efi_file_path//.uefibackup/}
-
-	prepare_shim
-
-	prepare_microcode
-
-	# Clear kernel command line if it is disabled
-	[[ -n $DISABLE_CMDLINE ]] && entry_kernel_commands=
-
-	# Generate config which is loaded by Xen.efi
-	local xen_config_file
-	xen_config_file="umc-xen-$( echo ${efi_file_path} | sed "s/.*\///g").cfg"
-
-	echo "[global]
-default=$NAME
-
-[$NAME]
-options=${xen_options}
-kernel=$( echo ${efi_file_path} | sed "s/.*\///g")${entry_kernel_commands}
-ramdisk=$( echo ${initramfs_image} | sed "s/.*\///g")i
-ucode=${microcode}"
-
-	# Prepare xen efi as efi loader
-	efi_loader="$( echo "${xen_efi_path}${xen_efi_file}" | sed 's/\//\\/g' )"
-
-	echo "efibootmgr -q ${entry_creation_opt} -b "${bootnum}" --disk /dev/"${partition}" --part "${partition_id}" --label "${entry_label}" --loader "${efi_loader}" -u "cfg=${xen_config_file}""
-	#efibootmgr -q ${entry_creation_opt} -b "${bootnum}" --disk /dev/"${partition}" --part "${partition_id}" --label "${entry_label}" --loader "${efi_loader}" -u ${xen_config_file}
-}
-
-wipe_xen_configs () {
-
-	local xen_efi_path
-
-	# Get path where the Xen efi resides
-	xen_efi_path=$( echo "$efi_file_path" | sed s/$efi_file_name//g )
 
 }
 
@@ -401,7 +337,7 @@ Usage: uefi_mkconfig [options]
             exit 0
 
         elif [[ "${options}" == "--dry-run" ]] || [[ "${options}" == "-d" ]]; then
-            echo "Running Dry Run mode!"
+            einfo "Running Dry Run mode!"
             UMC_TEST=true
 
         else
@@ -645,15 +581,6 @@ ${partition_efis}"
 			fi
 
 			entry_kernel_commands="${config_kernel_commands}"
-
-			# Enable/Disable Xen support
-			## NON FUNCTIONAL FOR NOW
-			XEN=
-			if [[ -n $XEN ]]; then
-				add_xen_uefi_entry
-			else
-				add_uefi_entry
-			fi
 
 			# If the order in which entries are added should be is reverse reverse counting of the boot number as well
 			if [[ -n $REVERSE_ORDER ]]; then
