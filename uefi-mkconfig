@@ -528,7 +528,6 @@ ${partition_efis}"
 		# Check for existence of backup entry
 		backup_efi=
 		local backup_entry
-		echo "TESTING: $efi_file"
 		if [[ "$efi_file" == *".uefibackup" ]]; then
 			efi_file="${efi_file/.uefibackup/}"
 			backup_entry="$(grep "UMCB ${efi_file_path/.uefibackup} on ${partition_label} " <<< "$initial_uefi_state")"
@@ -573,6 +572,7 @@ ${partition_efis}"
 			# Prepare parameters for adding new entry
 			local entry_creation_opt
 			local backup_label
+			backup_label=
 			if [[ -n $backup_efi ]]; then
 				entry_creation_opt="--create-only"
 				backup_label="BACKUP "
@@ -582,6 +582,8 @@ ${partition_efis}"
 
 			entry_kernel_commands="${config_kernel_commands}"
 
+			add_uefi_entry
+
 			# If the order in which entries are added should be is reverse reverse counting of the boot number as well
 			if [[ -n $REVERSE_ORDER ]]; then
 				entry_id=$((entry_id+1))
@@ -590,6 +592,8 @@ ${partition_efis}"
 			fi
 
 		done
+
+		backup_efi=
 
 	done
 
