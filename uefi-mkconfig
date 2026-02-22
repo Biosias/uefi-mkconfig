@@ -85,11 +85,13 @@ prepare_microcode () {
 	microcode=
 	microcode_path="${efi_file_path/${efi_file_path##*/}}"
 	if [[ -f "${partition_mount}${microcode_path}amd-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}amd-uc.img.ignore" ]]; then
-		microcode="amd-uc.img"
+		microcode="${microcode_path}amd-uc.img"
 	fi
 	if [[ -f "${partition_mount}${microcode_path}intel-uc.img" ]] && [[ ! -f "${partition_mount}${microcode_path}intel-uc.img.ignore" ]]; then
-		microcode="intel-uc.img"
+		microcode="${microcode_path}intel-uc.img"
 	fi
+
+    [[ -n ${microcode} ]] && entry_kernel_commands="${entry_kernel_commands} initrd=${microcode//\//\\}"
 
 }
 
