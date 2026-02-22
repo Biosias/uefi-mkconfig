@@ -155,9 +155,12 @@ wipe_entries () {
 	# Get list of all non backup entries made by uefi-mkconfig
 	initial_uefi_umc_state="$(printf %s "$initial_uefi_state" | grep " UMC ")"
 
+    [[ -n ${UMC_VERBOSE} ]] && einfo "Removing entries from last run"
+
 	local IFS=$'\n'
 	for delete_entry in $initial_uefi_umc_state; do
 		[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q -B -b \"${delete_entry:4:4}\""
+		[[ -n ${UMC_VERBOSE} ]] && ewarn "Removing ${delete_entry}"
 		[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${delete_entry:4:4}"
 	done
 }
@@ -243,7 +246,7 @@ DISABLE_CMDLINE=false' > "/etc/default/uefi-mkconfig"
 		[[ -n $(grep "EFI_LOADER_FORWARDSLASH=true" "${kernel_config_path}/uefi-mkconfig" | grep -v "#") ]] && EFI_LOADER_FORWARDSLASH=1
 	fi
 
-			# Verify if "root=" is present
+	# Verify if "root=" is present
 	if [[ "$kernel_configs" != *"root="* && $DISABLE_CMDLINE -ne 1 ]]; then
 	    die "Warning! Kernel command \"root=\" is missing from loaded configuration!
    This option is vital for successfully booting the system! Booting will fail without it!
