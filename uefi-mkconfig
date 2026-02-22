@@ -122,10 +122,10 @@ add_uefi_entry () {
 
 	# Add new entry
 	if [[ -n $DISABLE_CMDLINE ]]; then
-		[[ -n ${UMC_VERBOSE} ]] && echo "Verbose: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
+		[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\""
 		[[ $UMC_TEST == true ]] || efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
 	else
-		[[ -n ${UMC_VERBOSE} ]] && echo "Verbose: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
+		[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q $entry_creation_opt -b \"$bootnum\" --disk \"/dev/$partition\" --part \"$partition_id\" --label \"$entry_label\" --loader \"${efi_loader}\" -u \"$entry_kernel_commands\""
 		[[ $UMC_TEST == true ]] || efibootmgr -q $entry_creation_opt -b "$bootnum" --disk /dev/"$partition" --part "$partition_id" --label "$entry_label" --loader "${efi_loader}" -u ${entry_kernel_commands} || die "Failed to add UEFI ${backup_label}entry for \"$efi_file_path\""
 	fi
 
@@ -140,7 +140,7 @@ clean_legacy_entries () {
 		entries="$(grep -v -e "BootOrder" -e "Timeout" -e "BootCurrent" <<< "$initial_uefi_state" | grep "$kernel_images")"
 		for entry in ${entries}; do
 			if [[ "$(printf %d "0x${entry:4:4}" 2> /dev/null)" -gt 255 ]] && [[ "$(printf %d "0x${entry:4:4}" 2> /dev/null)" -lt 513 ]]; then
-				[[ -n ${UMC_VERBOSE} ]] && echo "Verbose: efibootmgr -q -B -b \"${entry:4:4}\""
+				[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q -B -b \"${entry:4:4}\""
 				[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${entry:4:4}"
 
 				ewarn "Removing pre v2.0 legacy entry \"${entry:4:4}\""
@@ -157,7 +157,7 @@ wipe_entries () {
 
 	local IFS=$'\n'
 	for delete_entry in $initial_uefi_umc_state; do
-		[[ -n ${UMC_VERBOSE} ]] && echo "Verbose: efibootmgr -q -B -b \"${delete_entry:4:4}\""
+		[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q -B -b \"${delete_entry:4:4}\""
 		[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${delete_entry:4:4}"
 	done
 }
@@ -315,6 +315,7 @@ Usage: uefi_mkconfig [options]
         --help -h       Print this message
         --version -V    Print only version
         --verbose -v    Run in verbose mode
+        --debug         Show debug messages while running uefi-mkconfig
         --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
 
         local IFS=' '
@@ -329,6 +330,11 @@ Usage: uefi_mkconfig [options]
 
             if [[ "${option}" == "--verbose" ]] || [[ "${option}" == "-v" ]]; then
                 UMC_VERBOSE=true
+                valid_option=1
+            fi
+
+            if [[ "${option}" == "--debug" ]]; then
+                UMC_DEBUG=true
                 valid_option=1
             fi
 
@@ -356,7 +362,7 @@ Usage: uefi_mkconfig [options]
 
 	einfo "Running uefi-mkconfig..."
 	[[ -n ${UMC_TEST} ]] && einfo "Running in Dry Run mode!"
-	[[ -n ${UMC_VERBOSE} ]] && einfo "Running in Verbose mode!"
+	[[ -n ${UMC_DEBUG} ]] && einfo "Running in Debug mode!"
 
 	# Check if uefi-mkconfig is running as root
 	if [[ ${EUID} -ne 0 ]]; then
