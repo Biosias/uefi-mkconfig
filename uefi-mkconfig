@@ -72,7 +72,7 @@ prepare_shim () {
 		using_shim="using shim \"$shim\" "
 
 		# Set efibootmgr loader to shim from kernel efi file
-		efi_loader="$(echo ${shim} | sed 's/\//\\/g')"
+		efi_loader="$(echo "${shim}" | sed 's/\//\\/g')"
 	fi
 
 }
@@ -111,12 +111,12 @@ add_uefi_entry () {
 	prepare_microcode
 
 	# Clean redundant spaces from the kernel commandline
-	entry_kernel_commands="$( echo $entry_kernel_commands | sed -E 's/\ +/ /g' | sed 's/ $//g' )"
+	entry_kernel_commands="$( echo "$entry_kernel_commands" | sed -E 's/\ +/ /g' | sed 's/ $//g' )"
 
     # Use forwardslashes instead of backslashes in the loader section
     if [[ -n ${EFI_LOADER_FORWARDSLASH} ]]; then
-        efi_loader="$(echo ${efi_loader} | sed 's/\\/\//g')"
-        entry_kernel_commands="$(echo ${entry_kernel_commands} | sed 's/\\/\//g')"
+        efi_loader="$(echo "${efi_loader}" | sed 's/\\/\//g')"
+        entry_kernel_commands="$(echo "${entry_kernel_commands}" | sed 's/\\/\//g')"
 
     fi
 
