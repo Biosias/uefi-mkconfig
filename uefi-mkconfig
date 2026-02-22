@@ -600,8 +600,6 @@ ${partition_efis}"
 
 		done
 
-		backup_efi=
-
 	done
 
 	einfo "Done"
