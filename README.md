@@ -131,10 +131,11 @@ Following is a list of variables which could be used in entry label templates:
 
 1. `%efi_file_path` - Path to the efi file of the kernel
 2. `%partition_label` - Partition label of a partition on which the kernel image being added resides
-3. `%kernel_version` - Version of a kernel being added
-4. `%linux_name` - Distribution name of the syste
-5. `%entry_id` - ID of the entry being added (Recommended to avoid accidentally adding multiple entries with the same label)
-6. `%partition` - Partition on which the kernel image being added resides
+3. `%kernel_release` - Version of a kernel being added including localconfig suffix
+4. `%kernel_version` - Version of a kernel being added
+5. `%linux_name` - Distribution name of the syste
+6. `%entry_id` - ID of the entry being added (Recommended to avoid accidentally adding multiple entries with the same label)
+7. `%partition` - Partition on which the kernel image being added resides
 
 ### 7. Ignoring Kernel Images
 If needed, some kernel images can be ignored by creating an empty file in the same directory as the kernel with the same name
