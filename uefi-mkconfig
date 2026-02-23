@@ -19,6 +19,7 @@ prepare_entry_label () {
 	# Substitute %values in entry labels
 	entry_label="${entry_label/\%efi_file_path/${efi_file_path/.uefibackup}}"
 	entry_label="${entry_label/\%partition_label/$partition_label}"
+	entry_label="${entry_label/\%kernel_release/$kernel_version}"
 	entry_label="${entry_label/\%kernel_version/${kernel_version/-*}}"
 	entry_label="${entry_label/\%linux_name/$NAME}"
 	entry_label="${entry_label/\%entry_id/$entry_id}"
