@@ -3,7 +3,7 @@
 chroot_create () {
 	echo "Creating chroot environment in $TEMP_DIR"
 
-	setup_dirs="bin etc/default tests dev usr/bin usr/sbin log usr/lib64 lib lib64 boot1/EFI/Gentoo boot2/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"
+	setup_dirs="bin etc/default tests dev usr/bin usr/sbin log usr/lib64 lib lib64 boot1/EFI/Gentoo boot2/EFI/Gentoo boot3/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"
 	
 	for dir in $setup_dirs; do
 		mkdir -p "$TEMP_DIR/$dir"
@@ -38,12 +38,12 @@ chroot_destroy () {
 	[[ "$TEMP_DIR" != "/" ]] && [[ "$TEMP_DIR" != "" ]] && rm -rf "$TEMP_DIR"
 }
 
-MY_LOCATION="$(echo $(which ${0}) | sed 's/\/chroot_tests.sh//')"
+MY_LOCATION="$(echo $(which ${0}) | sed 's/\/run_chroot_tests.sh//')"
 TEMP_DIR="$(mktemp -d)"
 
 chroot_create
 
-chroot "$TEMP_DIR" /bin/bash /tests/run_tests.sh
+chroot "$TEMP_DIR" /bin/bash /tests/tests_inside_chroot.sh
 #chroot "$TEMP_DIR" /bin/bash
 
 chroot_destroy
