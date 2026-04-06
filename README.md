@@ -13,10 +13,21 @@ These inconsistencies result in erratic behaviour which may cause unpredictable 
 
 Some of these problems can be mitigated by us in the uefi-mkconfig code so if you encouter any weird behaviour, please don't hesitate to open an Issue.
 
+## Running uefi-mkconfig
+
+```
+Usage: uefi_mkconfig [options]
+        --help -h       Print this message
+        --version -V    Print only version
+        --verbose -v    Run in verbose mode
+        --debug         Show debug messages while running uefi-mkconfig
+        --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware    
+```
+
 ## Setup
 After installation there are few steps that need to be taken before uefi-mkconfig can be used:
 
-### 1. Install the dependencies
+### 1. Install the dependencies (if installed outside of package manager)
 uefi-mkconfig uses the following programs:
 * Bash,
 * efibootmgr,
@@ -27,7 +38,12 @@ uefi-mkconfig uses the following programs:
 ### 2. Verify boot partition type
 uefi-mkconfig uses the `lsblk` command to identify which mounted partitions are EFI partitions.
 
-Because of this, all EFI partitions need to be of a correct partition type (Partition type EFI System).
+Because of this, all EFI partitions need to be of a correct partition type.
+
+```
+PARTTYPE: c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+PARTTYPENAME: EFI System
+```
 
 Following is an example of how to verify this:
 
@@ -39,16 +55,19 @@ nvme0n1                                       259:0    0 500G  0 disk
 ├─nvme0n1p1                                   259:1    0     1G  0 part  /boot  c12a7328-f81f-11d2-ba4b-00a0c93ec93b EFI System
 ```
 
-### 3. Configure uefi-mkconfig
-uefi-mkconfig will look for configuration files in following directories
+### 3. Verify kernel installation
+Each kernel image file needs to end in .efi because some UEFI Firmware implementation will refuse to boot it otherwaise.
 
-* `/etc/default`
-* `/etc/kernel`
-* `/usr/lib/kernel`
+### 3. Configuration
+uefi-mkconfig will look for its configuration file in following directories (in this order)
+
+* `/etc/default/uefi-mkconfig`
+* `/etc/kernel/uefi-mkconfig`
+* `/usr/lib/kernel/uefi-mkconfig`
 
 If configuration file isn't found, running uefi-mkconfig will generate skeleton config file in `/etc/default/`.
 
-Inside of this file, you can configure kernel commandline arguments and template for naming UEFI boot entries.
+In said file, you can configure kernel commandline arguments, templates for naming UEFI boot entries and other available options.
 
 Following are examples of a configured label template with its corresponding kernel commandline arguments:
 
@@ -56,21 +75,21 @@ Following are examples of a configured label template with its corresponding ker
 KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; root=/dev/mapper/gentoo-root rootfstype=ext4 resume=/dev/mapper/gentoo-swap"
 ```
 
-It is possible to create multiple lines like this with different label template and kernel commandline arguments for uefi-mkconfig to create 2 different entries for each kernel image.
-Order of these lines in the configuration file is important since it will be the order in which the entries are added.
+You can create multiple lines like this with different label template and kernel commandline arguments so uefi-mkconfig will create multiple different entries for each kernel image file.
+**Order of these lines in the configuration file is important since it will be the order in which the entries are added.**
 
 ### 4. Add all EFI partitions to fstab
-uefi-mkconfig autodiscovers kernel images by searching all mounted EFI partitions.
+uefi-mkconfig autodiscovers kernel image files by searching through the filesystems of all mounted EFI partitions.
 This means that having all EFI partitions you want to use, mounted upon running uefi-mkconfig is paramount.
-If they are not, the script will refuse to run.
-If only some of them are mounted, **you will loose** entries for kernel images located on said unmounted partitions.
+If only some of them are mounted, **you will loose** entries for kernel image files located on partitions which are not.
+If there are no mounted EFI partitions, uefi-mkconfig will refuse to run.
 
 Because of this, adding all EFI partitions, you want to use, into the `/etc/fstab` file is **strongly** recommended.
 
 ## Features
 
 ### 1. Automatic UEFI Entry Management
-uefi-mkconfig uses efibootmgr to create and delete EFI entries for directly booting linux kernels.
+uefi-mkconfig uses `efibootmgr` to create and delete EFI entries.
 
 Automatic management is limited to range `0100`-`0200` Boot IDs in the UEFI Firmware.
 These IDs are hexadecimal numbers, so there are 256 slots which are managed automatically.
@@ -81,14 +100,14 @@ This will ensure that uefi-mkconfig will not touch your manually added entry.
 `ONLY_LATEST=true` can be set in the configuration file to force uefi-mkconfig to only add entry of the most recent kernel version available.
 
 ### 2. Kernel Auto-Discovery
-uefi-mkconfig searches through all mounted EFI partitions and creates EFI entries for all (not ignored) kernel images it finds.
+uefi-mkconfig searches through filesystem of each mounted EFI partitions and creates EFI entries for each kernel image file (.efi files) it finds.
 
 ### 3. Initramfs Auto-Discovery
-After discovering kernel image, uefi-mkconfig will search the directory said kernel image is located in for initramfs images belonging it.
+After discovering kernel image file, uefi-mkconfig will search the directory of said kernel image file for initramfs image file belonging it.
 
-Please **do not put** the `initrd=` entry to the kernel commads in uefi-mkconfig configuration file manually. It will be stripped out of it!
+**Please do not add the `initrd=` entry to the kernel commads in uefi-mkconfig configuration file manually. It will be stripped out of it!**
 
-If needed, initramfs image can be ignored by creating empty file named the same way with the suffix `.ignore`: 
+If needed, initramfs image file can be ignored by creating empty file named the same way with the suffix `.ignore`: 
 
 ```console
 # ls -l /boot/EFI/Gentoo
@@ -101,7 +120,7 @@ total 0
 
 ### 4. Microcode Loading
 uefi-mkconfig can autodiscover and add microcode image to the uefi entry.
-For this to happen the microcode image needs to be present in the same directory as kernel images.
+For this to happen the microcode image file needs to be present in the same directory as kernel image file.
 
 If needed, microcode image can be ignored by creating empty file named the same way with the suffix `.ignore`: 
 
@@ -118,7 +137,7 @@ total 0
 If SHIM file is present in a certain directory, all kernels residing within this directory will be configured to use it.
 If multiple shim files are in the same directory, only the first one, sorted alphabetically, will be used.
 
-For now, if SHIM booting is needed, kernel and shim have to be present within directory `/boot/EFI` or its subdirectory.
+**For now, if SHIM booting is needed, kernel and shim have to be present within directory `/boot/EFI` or its subdirectory.**
 
 ### 6. EFI Entry Labling
 Entry label template is defined in the configuration file in the first section of the `KERNEL_CONFIG` line before the ` ; ` separator
@@ -138,8 +157,8 @@ Following is a list of variables which could be used in entry label templates:
 7. `%partition` - Partition on which the kernel image being added resides
 
 ### 7. Ignoring Kernel Images
-If needed, some kernel images can be ignored by creating an empty file in the same directory as the kernel with the same name
-as efi file of the kernel image with `.ignore` suffix.
+If needed, kernel image files can be ignored by creating an empty file in the same directory with `.ignore` suffix.
+
 Example:
 
 ```console
@@ -153,6 +172,7 @@ drwxr-xr-x 3 root root     4096 Apr  4 10:15 ..
 
 ### 8. Backup Entry Creation
 uefi-mkconfig can automatically create backup uefi entry at position `0100`.
+
 This entry **will not** be automatically deleted and **will not** be added to the bootorder.
 Besides these two special rules, the entry creation itself is identical to the normal processs.
 
@@ -192,3 +212,4 @@ This should mitigate this issue.
 ## Credits
 * [@Nowa-Ammerlaan](https://github.com/Nowa-Ammerlaan) for very helpful feedback.
 * [Excello](https://www.excello.cz/en/) for letting me contribute during working hours.
+* [@kuraga](https://github.com/kuraga) for very helpful feedback.

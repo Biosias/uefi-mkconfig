@@ -162,9 +162,11 @@ wipe_entries () {
 
 	local IFS=$'\n'
 	for delete_entry in $initial_uefi_umc_state; do
-		[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q -B -b \"${delete_entry:4:4}\""
-		[[ -n ${UMC_VERBOSE} ]] && ewarn "Removing ${delete_entry}"
-		[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${delete_entry:4:4}"
+	    local delete_entry_id=$(echo ${delete_entry} | sed 's/^....//g;s/\*.*//g')
+		local delete_entry_label=$(echo ${delete_entry} | sed 's/^.*UMC/UMC/g;s/\ *HD.*//g')
+		[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q -B -b \"${delete_entry_id}\""
+		[[ -n ${UMC_VERBOSE} ]] && ewarn "Removing UEFI entry \"${delete_entry_id}\" with entry label \"${delete_entry_label}\""
+		[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${delete_entry_id}"
 	done
 }
 
