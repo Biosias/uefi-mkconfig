@@ -369,6 +369,7 @@ Usage: uefi_mkconfig [options]
 	einfo "Running uefi-mkconfig..."
 	[[ -n ${UMC_TEST} ]] && einfo "Running in Dry Run mode!"
 	[[ -n ${UMC_DEBUG} ]] && einfo "Running in Debug mode!"
+	[[ -n ${UMC_VERBOSE} ]] && einfo "Running in Verbose mode!"
 
 	# Check if uefi-mkconfig is running as root
 	if [[ ${EUID} -ne 0 ]]; then
@@ -618,6 +619,6 @@ ${partition_efis}"
 
 }
 
-options="${1} ${2}"
+options="${1} ${2} ${3}"
 
 main
