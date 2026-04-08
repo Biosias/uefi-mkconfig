@@ -158,7 +158,9 @@ wipe_entries () {
 	# Get list of all non backup entries made by uefi-mkconfig
 	initial_uefi_umc_state="$(printf %s "$initial_uefi_state" | grep " UMC ")"
 
-    [[ -n ${UMC_VERBOSE} ]] && einfo "Removing entries from last run"
+    if [[ -n ${UMC_VERBOSE} ]] && [[ -z ${UMC_VERBOSE} ]]; then
+        einfo "Removing entries from last run"
+    fi
 
 	local IFS=$'\n'
 	for delete_entry in $initial_uefi_umc_state; do
