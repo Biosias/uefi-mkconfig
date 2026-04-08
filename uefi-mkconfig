@@ -323,8 +323,8 @@ Usage: uefi_mkconfig [options]
         --help -h       Print this message
         --version -V    Print only version
         --verbose -v    Run in verbose mode
-        --debug         Show debug messages while running uefi-mkconfig
-        --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
+        --debug         Run in debug mode
+        --dry-run -d    Run in dry-run mode without writing any changes to the UEFI Firmware"
 
         local IFS=' '
         local valid_option
