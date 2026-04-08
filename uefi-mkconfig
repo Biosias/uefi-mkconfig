@@ -450,12 +450,13 @@ Usage: uefi_mkconfig [options]
     fi
 
 	# Sort kernel images
-	kernel_images="$(sort -uV <<< "$kernel_images_old")
-$(sort -uV <<< "$kernel_images_new")"
+	kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")"
+	# Format kernel_images correctly
+	kernel_images="$(echo "${kernel_images}" | sed "s/\ /\n/g")"
 
 	# Adding path back to the kernel image
 	local partition_efis=
-	for kernel_image in $kernel_images; do
+	for kernel_image in ${kernel_images}; do
 	    ## If the variable partition_efis is empty, add initial value
 	    if [[ -n ${partition_efis} ]]; then
 			# Variable partition_mounts in this case can't be inside of ""
@@ -467,10 +468,9 @@ $(find $partition_mounts -name "$kernel_image")"
 	done
 
 	# Move backup entries to the beginning of the list
-	for efi_file in $partition_efis; do
+	for efi_file in ${partition_efis}; do
 		if [[ -f "${efi_file}.uefibackup" ]]; then
-		    partition_efis="${efi_file}.uefibackup
-${partition_efis}"
+		    partition_efis="${efi_file}.uefibackup"$'\n'"${partition_efis}"
 		fi
 
 	done
@@ -505,8 +505,8 @@ ${partition_efis}"
 		local reverse_entries
 		reverse_entries=
 
-		for rev_entry in $partition_efis; do
-			reverse_entries="$rev_entry $reverse_entries"
+		for rev_entry in ${partition_efis}; do
+			reverse_entries="${rev_entry}"$'\n'"${reverse_entries}"
 		done
 
 		partition_efis="$reverse_entries"
