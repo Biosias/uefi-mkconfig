@@ -13,17 +13,6 @@ These inconsistencies result in erratic behaviour which may cause unpredictable 
 
 Some of these problems can be mitigated by us in the uefi-mkconfig code so if you encouter any weird behaviour, please don't hesitate to open an Issue.
 
-## Running uefi-mkconfig
-
-```
-Usage: uefi_mkconfig [options]
-        --help -h       Print this message
-        --version -V    Print only version
-        --verbose -v    Run in verbose mode
-        --debug         Show debug messages while running uefi-mkconfig
-        --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware    
-```
-
 ## Setup
 After installation there are few steps that need to be taken before uefi-mkconfig can be used:
 
@@ -56,9 +45,9 @@ nvme0n1                                       259:0    0 500G  0 disk
 ```
 
 ### 3. Verify kernel installation
-Each kernel image file needs to end in .efi because some UEFI Firmware implementation will refuse to boot it otherwaise.
+Each kernel image file needs to end in `.efi` because some UEFI Firmware implementation will refuse to boot it otherwise.
 
-### 3. Configuration
+### 4. Configuration
 uefi-mkconfig will look for its configuration file in following directories (in this order)
 
 * `/etc/default/uefi-mkconfig`
@@ -78,13 +67,24 @@ KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; root=/dev/mapper/ge
 You can create multiple lines like this with different label template and kernel commandline arguments so uefi-mkconfig will create multiple different entries for each kernel image file.
 **Order of these lines in the configuration file is important since it will be the order in which the entries are added.**
 
-### 4. Add all EFI partitions to fstab
+### 5. Add all EFI partitions to fstab
 uefi-mkconfig autodiscovers kernel image files by searching through the filesystems of all mounted EFI partitions.
 This means that having all EFI partitions you want to use, mounted upon running uefi-mkconfig is paramount.
 If only some of them are mounted, **you will loose** entries for kernel image files located on partitions which are not.
 If there are no mounted EFI partitions, uefi-mkconfig will refuse to run.
 
 Because of this, adding all EFI partitions, you want to use, into the `/etc/fstab` file is **strongly** recommended.
+
+## Running uefi-mkconfig
+
+```
+Usage: uefi_mkconfig [options]
+        --help -h       Print this message
+        --version -V    Print only version
+        --verbose -v    Run in verbose mode
+        --debug         Run in debug mode
+        --dry-run -d    Run in dry-run mode without writing any changes to the UEFI Firmware"
+```
 
 ## Features
 
@@ -100,7 +100,7 @@ This will ensure that uefi-mkconfig will not touch your manually added entry.
 `ONLY_LATEST=true` can be set in the configuration file to force uefi-mkconfig to only add entry of the most recent kernel version available.
 
 ### 2. Kernel Auto-Discovery
-uefi-mkconfig searches through filesystem of each mounted EFI partitions and creates EFI entries for each kernel image file (.efi files) it finds.
+uefi-mkconfig searches through filesystem of each mounted EFI partitions and creates EFI entries for each kernel image file (`.efi` files) it finds.
 
 ### 3. Initramfs Auto-Discovery
 After discovering kernel image file, uefi-mkconfig will search the directory of said kernel image file for initramfs image file belonging it.
