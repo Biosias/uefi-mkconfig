@@ -79,8 +79,8 @@ Because of this, adding all EFI partitions, you want to use, into the `/etc/fsta
 
 ```
 Usage: uefi_mkconfig [options]
-        --help -h       Print this message
-        --version -V    Print only version
+        --help -h       Print this help message and exit
+        --version -V    Print version only and exit
         --verbose -v    Run in verbose mode
         --debug         Run in debug mode
         --dry-run -d    Run in dry-run mode without writing any changes to the UEFI Firmware"
