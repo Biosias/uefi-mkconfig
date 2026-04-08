@@ -158,13 +158,17 @@ wipe_entries () {
 	# Get list of all non backup entries made by uefi-mkconfig
 	initial_uefi_umc_state="$(printf %s "$initial_uefi_state" | grep " UMC ")"
 
-    [[ -n ${UMC_VERBOSE} ]] && einfo "Removing entries from last run"
+    if [[ -n ${UMC_VERBOSE} ]] && [[ -z ${UMC_VERBOSE} ]]; then
+        einfo "Removing entries from last run"
+    fi
 
 	local IFS=$'\n'
 	for delete_entry in $initial_uefi_umc_state; do
-		[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q -B -b \"${delete_entry:4:4}\""
-		[[ -n ${UMC_VERBOSE} ]] && ewarn "Removing ${delete_entry}"
-		[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${delete_entry:4:4}"
+	    local delete_entry_id=$(echo ${delete_entry} | sed 's/^....//g;s/\*.*//g')
+		local delete_entry_label=$(echo ${delete_entry} | sed 's/^.*UMC/UMC/g;s/\ *HD.*//g')
+		[[ -n ${UMC_DEBUG} ]] && echo "DEBUG: efibootmgr -q -B -b \"${delete_entry_id}\""
+		[[ -n ${UMC_VERBOSE} ]] && ewarn "Removing UEFI entry \"${delete_entry_id}\" with entry label \"${delete_entry_label}\""
+		[[ $UMC_TEST == true ]] || efibootmgr -q -B -b "${delete_entry_id}"
 	done
 }
 
@@ -318,11 +322,11 @@ Installed in: $(which ${0})
 Github: https://github.com/Biosias/uefi-mkconfig
 
 Usage: uefi_mkconfig [options]
-        --help -h       Print this message
-        --version -V    Print only version
+        --help -h       Print this help message and exit
+        --version -V    Print version only and exit
         --verbose -v    Run in verbose mode
-        --debug         Show debug messages while running uefi-mkconfig
-        --dry-run -d    Do a dry run without writing any changes to the UEFI Firmware"
+        --debug         Run in debug mode
+        --dry-run -d    Run in dry-run mode without writing any changes to the UEFI Firmware"
 
         local IFS=' '
         local valid_option
@@ -369,6 +373,7 @@ Usage: uefi_mkconfig [options]
 	einfo "Running uefi-mkconfig..."
 	[[ -n ${UMC_TEST} ]] && einfo "Running in Dry Run mode!"
 	[[ -n ${UMC_DEBUG} ]] && einfo "Running in Debug mode!"
+	[[ -n ${UMC_VERBOSE} ]] && einfo "Running in Verbose mode!"
 
 	# Check if uefi-mkconfig is running as root
 	if [[ ${EUID} -ne 0 ]]; then
@@ -445,12 +450,13 @@ Usage: uefi_mkconfig [options]
     fi
 
 	# Sort kernel images
-	kernel_images="$(sort -uV <<< "$kernel_images_old")
-$(sort -uV <<< "$kernel_images_new")"
+	kernel_images="$(sort -uV <<< "$kernel_images_old") $(sort -uV <<< "$kernel_images_new")"
+	# Format kernel_images correctly
+	kernel_images="$(echo "${kernel_images}" | sed "s/\ /\n/g")"
 
 	# Adding path back to the kernel image
 	local partition_efis=
-	for kernel_image in $kernel_images; do
+	for kernel_image in ${kernel_images}; do
 	    ## If the variable partition_efis is empty, add initial value
 	    if [[ -n ${partition_efis} ]]; then
 			# Variable partition_mounts in this case can't be inside of ""
@@ -462,10 +468,9 @@ $(find $partition_mounts -name "$kernel_image")"
 	done
 
 	# Move backup entries to the beginning of the list
-	for efi_file in $partition_efis; do
+	for efi_file in ${partition_efis}; do
 		if [[ -f "${efi_file}.uefibackup" ]]; then
-		    partition_efis="${efi_file}.uefibackup
-${partition_efis}"
+		    partition_efis="${efi_file}.uefibackup"$'\n'"${partition_efis}"
 		fi
 
 	done
@@ -500,8 +505,8 @@ ${partition_efis}"
 		local reverse_entries
 		reverse_entries=
 
-		for rev_entry in $partition_efis; do
-			reverse_entries="$rev_entry $reverse_entries"
+		for rev_entry in ${partition_efis}; do
+			reverse_entries="${rev_entry}"$'\n'"${reverse_entries}"
 		done
 
 		partition_efis="$reverse_entries"
@@ -618,6 +623,6 @@ ${partition_efis}"
 
 }
 
-options="${1} ${2}"
+options="${1} ${2} ${3}"
 
 main
