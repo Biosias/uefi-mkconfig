@@ -5,9 +5,8 @@ mounted_dirs=""
 chroot_create () {
 	echo "Creating chroot environment in $TEMP_DIR"
 
-	local -r mount_dirs="bin lib lib64 usr/lib64 usr/sbin usr/bin"
-	local -r setup_dirs="$mount_dirs etc/default tests dev log boot1/EFI/Gentoo boot2/EFI/Gentoo boot3/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"
-	
+	local -r mount_dirs="bin lib lib64 usr/lib64 usr/sbin usr/bin etc/alternatives"
+	local -r setup_dirs="$mount_dirs etc/default tests dev log boot1/EFI/Gentoo boot2/EFI/Gentoo boot3/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"	
 	for dir in $setup_dirs; do
 		mkdir -p "$TEMP_DIR/$dir"
 	done
