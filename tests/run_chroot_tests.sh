@@ -39,7 +39,7 @@ chroot_destroy () {
 	[[ "$TEMP_DIR" != "/" ]] && [[ "$TEMP_DIR" != "" ]] && rm -r "$TEMP_DIR"
 }
 
-MY_LOCATION="$(echo $(which ${0}) | sed 's/\/run_chroot_tests.sh//')"
+MY_LOCATION="$(cd -- "$(dirname -- "$0")" && pwd)"
 TEMP_DIR="$(mktemp -d)"
 
 chroot_create
