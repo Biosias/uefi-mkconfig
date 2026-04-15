@@ -314,7 +314,7 @@ main () {
     if [[ -n ${options} ]]; then
         help_message="uefi_mkconfig automatic UEFI entry management script
 Version: ${uefi_mkconfig_version}
-Installed in: $(which ${0})
+Installed in: $(cd -- "$(dirname -- "$0")" && pwd)
 Github: https://github.com/Biosias/uefi-mkconfig
 
 Usage: uefi_mkconfig [options]

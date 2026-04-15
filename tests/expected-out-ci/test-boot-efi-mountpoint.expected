@@ -1,0 +1,7 @@
+ [1;32m*[0m Running uefi-mkconfig...
+ [1;32m*[0m Running in Dry Run mode!
+ [1;32m*[0m Using kernel commands from "/etc/default/uefi-mkconfig"
+ [1;33m*[0m No initramfs found for "/boot/efi/EFI/Gentoo/vmlinuz-6.12.58-gentoo-dist-old.efi".
+ [1;32m*[0m Creating UEFI entry "0200" for "/boot/efi/EFI/Gentoo/vmlinuz-6.12.58-gentoo-dist-old.efi" found on "nvme0n1p1"
+ [1;32m*[0m Done
+0

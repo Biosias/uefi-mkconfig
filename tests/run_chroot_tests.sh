@@ -1,18 +1,19 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+mounted_dirs=""
 
 chroot_create () {
 	echo "Creating chroot environment in $TEMP_DIR"
 
-	setup_dirs="bin etc/default tests dev usr/bin usr/sbin log usr/lib64 lib lib64 boot1/EFI/Gentoo boot2/EFI/Gentoo boot3/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"
-	
+	local -r mount_dirs="bin lib lib64 usr/lib64 usr/sbin usr/bin etc/alternatives"
+	local -r setup_dirs="$mount_dirs etc/default tests dev log boot1/EFI/Gentoo boot2/EFI/Gentoo boot3/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"	
 	for dir in $setup_dirs; do
 		mkdir -p "$TEMP_DIR/$dir"
 	done
 
-	mount_dirs="bin lib lib64 usr/lib64 usr/sbin usr/bin"
 
 	for dir in $mount_dirs; do
-		mount --rbind -o ro "/$dir" "$TEMP_DIR/$dir"
+		[ -d "/$dir" ] && mount --rbind -o ro "/$dir" "$TEMP_DIR/$dir" && mounted_dirs="$mounted_dirs $dir"
 	done
 	
 	touch "$TEMP_DIR/uefi-mkconfig"
@@ -29,21 +30,23 @@ chroot_create () {
 chroot_destroy () {
 	echo "Destroying chroot environment in $TEMP_DIR"
 
-	mount_dirs="bin lib lib64 usr/lib64 usr/sbin tests uefi-mkconfig log dev/null usr/bin"
+	local -r mounts="$mounted_dirs uefi-mkconfig tests log dev/null"
 
-	for dir in $mount_dirs; do
-		umount "$TEMP_DIR/$dir"
+	for mount in $mounts; do
+		umount -l "$TEMP_DIR/$mount"
 	done
 
-	[[ "$TEMP_DIR" != "/" ]] && [[ "$TEMP_DIR" != "" ]] && rm -rf "$TEMP_DIR"
+	[[ "$TEMP_DIR" != "/" ]] && [[ "$TEMP_DIR" != "" ]] && rm -r "$TEMP_DIR"
 }
 
-MY_LOCATION="$(echo $(which ${0}) | sed 's/\/run_chroot_tests.sh//')"
+MY_LOCATION="$(cd -- "$(dirname -- "$0")" && pwd)"
 TEMP_DIR="$(mktemp -d)"
 
 chroot_create
 
 chroot "$TEMP_DIR" /bin/bash /tests/tests_inside_chroot.sh
+rc=$?
 #chroot "$TEMP_DIR" /bin/bash
 
 chroot_destroy
+exit $rc

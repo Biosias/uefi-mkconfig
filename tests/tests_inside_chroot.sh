@@ -1,4 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly ref_dir="${TEST_REF_DIR:-"/tests/expected-out"}"
+readonly out_dir="/log"
+check_output=true
+num_test=0
+num_fail=0
 
 clean-test (){
 	rm -rf /boot1/EFI/Gentoo/*
@@ -16,21 +23,27 @@ clean-test (){
 
 simulate-run (){
 
-	output="/out"
-
-	[[ -f "${output}" ]] && rm "${output}"
-
-	/bin/bash /uefi-mkconfig ${1} ${2} ${3} &>> "${output}"
-
-	if [[ "$(sha256sum "${output}" | cut -d" " -f1)" == "$(sha256sum $expected_output_file | cut -d" " -f1)" ]]; then
-		echo "Passed"
-	else
-		echo "Fail"
-		#cat "${output}" | grep -v "TEST:"
-		#diff -c "${ouput}" "$expected_output_file"
-	fi
+	local -r output="$out_dir/${FUNCNAME[1]}"
+	local -r expected_output_file="${ref_dir}/${FUNCNAME[1]}.expected"
 	
-	echo "----"
+	set +e
+	/bin/bash /uefi-mkconfig "$@" 2>&1 | tee "$output"
+	echo "${PIPESTATUS[0]}"| tee -a "$output"
+	set -e
+
+	if $check_output; then
+		((num_test+=1))
+		if [[ "$(sha256sum "${output}" | cut -d" " -f1)" == "$(sha256sum "$expected_output_file" | cut -d" " -f1)" ]]; then
+			echo "$num_test: Passed"
+		else
+			echo "$num_test: Fail"
+			((num_fail+=1))
+			#cat "${output}" | grep -v "TEST:"
+			#diff -c "${ouput}" "$expected_output_file"
+		fi
+		
+		echo "----"
+	fi
 
 }
 
@@ -71,8 +84,6 @@ test-first-run (){
 	# Test running uefi-mkconfig without config file
 	echo "Testing first run:"	
 
-	expected_output_file="/tests/expected-out/test-first-run.expected"
-
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
 	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
@@ -81,7 +92,6 @@ test-first-run (){
 	mock-efi-files
 
 	simulate-run
-	cat "${output}"
 
 	clean-test
 
@@ -91,8 +101,6 @@ test-first-run (){
 
 test-missing-root (){
 	echo "Testing missing root uefi-mkconfig run:"	
-
-	expected_output_file="/tests/expected-out/test-standard-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
@@ -105,7 +113,6 @@ test-missing-root (){
 	echo 'KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; "' >> /etc/default/uefi-mkconfig
 
 	simulate-run
-	cat "${output}"
 
 	clean-test
 
@@ -117,8 +124,6 @@ test-first-run-config-generation (){
 	# Test running uefi-mkconfig without config file making sure it is generated
 	echo "Testing generation of new config file upon first run:"	
 
-	expected_output_file="/tests/expected-out/test-first-run.expected"
-
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
 	export UMC_TEST_LSBLK="/tests/mock-inputs/lsblk-2-efi-partitions"
@@ -126,12 +131,13 @@ test-first-run-config-generation (){
 
 	mock-efi-files
 
+	check_output=false
 	simulate-run
+	check_output=true
 	
 	[[ -f /etc/default/uefi-mkconfig ]] && echo "Configuration has been created!"
 
 	simulate-run
-	cat "${output}"
 
 	clean-test
 
@@ -142,8 +148,6 @@ test-first-run-config-generation (){
 test-dry-run-config-generation (){
 	# Test running uefi-mkconfig without config file making sure it is generated
 	echo "Testing generation of new config file upon dry run:"	
-
-	expected_output_file="/tests/expected-out/test-first-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="false"
@@ -159,7 +163,6 @@ test-dry-run-config-generation (){
 	else
 		echo "Configuration does not exist!"
 	fi
-	cat "${output}"
 
 	clean-test
 
@@ -169,8 +172,6 @@ test-dry-run-config-generation (){
 
 test-standard-run (){
 	echo "Testing standard uefi-mkconfig run:"	
-
-	expected_output_file="/tests/expected-out/test-standard-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
@@ -183,7 +184,6 @@ test-standard-run (){
 	echo 'KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; root=/dev/sda1 "' >> /etc/default/uefi-mkconfig
 
 	simulate-run --debug
-	cat "${output}"
 
 	clean-test
 
@@ -193,8 +193,6 @@ test-standard-run (){
 
 test-legacy-config-run (){
 	echo "Testing running uefi-mkconfig with legacy config format:"	
-
-	expected_output_file="/tests/expected-out/test-legacy-config-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
@@ -207,7 +205,6 @@ test-legacy-config-run (){
 	echo 'root=/dev/sda1 test=test' >> /etc/default/uefi-mkconfig
 
 	simulate-run
-	cat "${output}"
 
 	clean-test
 
@@ -217,8 +214,6 @@ test-legacy-config-run (){
 
 test-latest-only-run (){
 	echo "Testing latest-only uefi-mkconfig run:"	
-
-	expected_output_file="/tests/expected-out/test-latest-only-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
@@ -234,7 +229,6 @@ test-latest-only-run (){
 	echo "ONLY_LATEST=true" >> /etc/default/uefi-mkconfig
 
 	simulate-run
-	cat "${output}"
 
 	clean-test
 
@@ -244,8 +238,6 @@ test-latest-only-run (){
 
 test-forwardslashes (){
 	echo "Testing forwardslashes uefi-mkconfig run:"	
-
-	expected_output_file="/tests/expected-out/test-latest-only-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
@@ -261,7 +253,6 @@ test-forwardslashes (){
 	echo "EFI_LOADER_FORWARDSLASH=true" >> /etc/default/uefi-mkconfig
 
 	simulate-run
-	cat "${output}"
 
 	clean-test
 
@@ -273,8 +264,6 @@ test-boot-efi-mountpoint (){
 	echo "Testing boot-efi-mountpoint test uefi-mkconfig run:"	
 
 	# Created because of issue #39
-
-	expected_output_file="/tests/expected-out/test-latest-only-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
@@ -290,7 +279,6 @@ test-boot-efi-mountpoint (){
 	echo 'KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; root=/dev/nvme1p1"' >> /etc/default/uefi-mkconfig
 
 	simulate-run
-	cat "${output}"
 
 	clean-test
 
@@ -300,8 +288,6 @@ test-boot-efi-mountpoint (){
 
 test-backup-entries-run (){
 	echo "Testing backups entries run:"	
-
-	expected_output_file="/tests/expected-out/test-standard-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
@@ -316,7 +302,6 @@ test-backup-entries-run (){
 	echo 'KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; root=/dev/sda1 "' >> /etc/default/uefi-mkconfig
 
 	simulate-run
-	cat "${output}"
 
 	clean-test
 
@@ -326,8 +311,6 @@ test-backup-entries-run (){
 
 test-verbose-and-debug-run (){
 	echo "Testing verbose and debug uefi-mkconfig run:"	
-
-	expected_output_file="/tests/expected-out/test-standard-run.expected"
 
 	export UMC_TEST="true"
 	export UMC_MOCK="true"
@@ -340,7 +323,6 @@ test-verbose-and-debug-run (){
 	echo 'KERNEL_CONFIG="%entry_id %linux_name Linux %kernel_version ; root=/dev/sda1 "' >> /etc/default/uefi-mkconfig
 
 	simulate-run -v --debug
-	cat "${output}"
 
 	clean-test
 
@@ -371,16 +353,24 @@ run_tests() {
 	test-backup-entries-run
 
 	test-verbose-and-debug-run
+
+	echo "Tested: $num_test"
+	echo "Failed: $num_fail"
+
+	[ "$num_fail" -eq "0" ]
 }
 
 if [[ -f /inside-umc-test-chroot ]]; then
 
-	output_log="/log/out"
-	
-	run_tests &> "${output_log}"
-
-	cat "${output_log}"
+	if run_tests; then
+		echo "Passed"
+		exit 0
+	else
+		echo "Fail"
+		exit 1
+	fi
 
 else
 	echo "Not in test chroot, stopping. Run run_chroot_tests.sh to tun these tests in safe chroot!"
+	exit 2
 fi
