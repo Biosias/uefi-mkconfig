@@ -26,3 +26,4 @@ DEBUG: efibootmgr -q --create -b "01F9" --disk "/dev/nvme0n1p2" --part "2" --lab
  [1;32m*[0m Creating UEFI entry "01F8" for "/boot3/EFI/Gentoo/vmlinuz-6.11.7-gentoo-dist.efi" found on "sdb1"
 DEBUG: efibootmgr -q --create -b "01F8" --disk "/dev/sdb1" --part "1" --label "UMC 1  Linux 6.11.7" --loader "\EFI\Gentoo\vmlinuz-6.11.7-gentoo-dist.efi" -u " root=/dev/sda1 initrd=\EFI\Gentoo\initramfs-6.11.7-gentoo-dist.img initrd=\EFI\Gentoo\amd-uc.img"
  [1;32m*[0m Done
+0

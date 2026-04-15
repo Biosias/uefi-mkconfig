@@ -1,8 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-ref_dir="/tests/expected-out"
-out_dir="/log"
+readonly ref_dir="/tests/expected-out"
+readonly out_dir="/log"
 check_output=true
+num_test=0
+num_fail=0
 
 clean-test (){
 	rm -rf /boot1/EFI/Gentoo/*
@@ -20,16 +23,21 @@ clean-test (){
 
 simulate-run (){
 
-	output="$out_dir/${FUNCNAME[1]}"
-	expected_output_file="${ref_dir}/${FUNCNAME[1]}.expected"
-
+	local -r output="$out_dir/${FUNCNAME[1]}"
+	local -r expected_output_file="${ref_dir}/${FUNCNAME[1]}.expected"
+	
+	set +e
 	/bin/bash /uefi-mkconfig "$@" 2>&1 | tee "$output"
+	echo "${PIPESTATUS[0]}"| tee -a "$output"
+	set -e
 
 	if $check_output; then
+		((num_test+=1))
 		if [[ "$(sha256sum "${output}" | cut -d" " -f1)" == "$(sha256sum "$expected_output_file" | cut -d" " -f1)" ]]; then
-			echo "Passed"
+			echo "$num_test: Passed"
 		else
-			echo "Fail"
+			echo "$num_test: Fail"
+			((num_fail+=1))
 			#cat "${output}" | grep -v "TEST:"
 			#diff -c "${ouput}" "$expected_output_file"
 		fi
@@ -345,12 +353,24 @@ run_tests() {
 	test-backup-entries-run
 
 	test-verbose-and-debug-run
+
+	echo "Tested: $num_test"
+	echo "Failed: $num_fail"
+
+	[ "$num_fail" -eq "0" ]
 }
 
 if [[ -f /inside-umc-test-chroot ]]; then
 
-	run_tests
+	if run_tests; then
+		echo "Passed"
+		exit 0
+	else
+		echo "Fail"
+		exit 1
+	fi
 
 else
 	echo "Not in test chroot, stopping. Run run_chroot_tests.sh to tun these tests in safe chroot!"
+	exit 2
 fi

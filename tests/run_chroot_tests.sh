@@ -1,11 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 mounted_dirs=""
 
 chroot_create () {
 	echo "Creating chroot environment in $TEMP_DIR"
 
-	mount_dirs="bin lib lib64 usr/lib64 usr/sbin usr/bin"
-	setup_dirs="$mount_dirs etc/default tests dev log boot1/EFI/Gentoo boot2/EFI/Gentoo boot3/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"
+	local -r mount_dirs="bin lib lib64 usr/lib64 usr/sbin usr/bin"
+	local -r setup_dirs="$mount_dirs etc/default tests dev log boot1/EFI/Gentoo boot2/EFI/Gentoo boot3/EFI/Gentoo boot1/EFI/shimtest boot2/EFI/shimtest"
 	
 	for dir in $setup_dirs; do
 		mkdir -p "$TEMP_DIR/$dir"
@@ -30,7 +31,7 @@ chroot_create () {
 chroot_destroy () {
 	echo "Destroying chroot environment in $TEMP_DIR"
 
-	mounts="$mounted_dirs uefi-mkconfig tests log dev/null"
+	local -r mounts="$mounted_dirs uefi-mkconfig tests log dev/null"
 
 	for mount in $mounts; do
 		umount -l "$TEMP_DIR/$mount"
@@ -45,6 +46,8 @@ TEMP_DIR="$(mktemp -d)"
 chroot_create
 
 chroot "$TEMP_DIR" /bin/bash /tests/tests_inside_chroot.sh
+rc=$?
 #chroot "$TEMP_DIR" /bin/bash
 
 chroot_destroy
+exit $rc

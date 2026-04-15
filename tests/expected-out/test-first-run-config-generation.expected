@@ -5,3 +5,4 @@
    This option is vital for successfully booting the system! Booting will fail without it!
    If you set kernel commandline via another method, please set DISABLE_CMDLINE=true in your uefi_mkcofing to suppress this check!
  [1;31m*[0m For more information please refer to https://github.com/Biosias/uefi-mkconfig
+1

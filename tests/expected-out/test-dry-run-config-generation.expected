@@ -2,3 +2,4 @@
  [1;32m*[0m Running in Dry Run mode!
  [1;31m*[0m No configuration found! Creating default one in '/etc/default/uefi-mkconfig'. Don't forget to configure the kernel commandline!
  [1;31m*[0m For more information please refer to https://github.com/Biosias/uefi-mkconfig
+1
