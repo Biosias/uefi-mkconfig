@@ -12,7 +12,7 @@ chroot_create () {
 	mount_dirs="bin lib lib64 usr/lib64 usr/sbin usr/bin"
 
 	for dir in $mount_dirs; do
-		mount --rbind -o ro "/$dir" "$TEMP_DIR/$dir"
+		[ -d "/$dir" ] && mount --rbind -o ro "/$dir" "$TEMP_DIR/$dir"
 	done
 	
 	touch "$TEMP_DIR/uefi-mkconfig"
