@@ -1,0 +1,8 @@
+ [1;32m*[0m Running uefi-mkconfig...
+ [1;32m*[0m Running in Dry Run mode!
+ [1;32m*[0m Using kernel commands from "/etc/default/uefi-mkconfig"
+ [1;31m*[0m Warning! Kernel command "root=" is missing from loaded configuration!
+   This option is vital for successfully booting the system! Booting will fail without it!
+   If you set kernel commandline via another method, please set DISABLE_CMDLINE=true in your uefi_mkcofing to suppress this check!
+ [1;31m*[0m For more information please refer to https://github.com/Biosias/uefi-mkconfig
+1

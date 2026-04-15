@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly ref_dir="/tests/expected-out"
+readonly ref_dir="${TEST_REF_DIR:-"/tests/expected-out"}"
 readonly out_dir="/log"
 check_output=true
 num_test=0
